@@ -11,13 +11,17 @@ app.use(express.json());
 app.use(cors());
 
 const PORT = process.env.PORT || 5000;
-
+const server = undefined;
 mongoose.connect(process.env.MONGO_URL)
 .then(
     () => {
         console.log("DB connected successfully");
-        app.listen(PORT, ()=>{
+        server = app.listen(PORT, ()=>{
             console.log(`Server is running on port ${PORT}`);
+        }); 
+
+        server.on('error', (err)=>{
+            console.log("Server error", err);
         });
     }
 )
