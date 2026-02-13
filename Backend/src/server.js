@@ -2,7 +2,8 @@ import express from "express";
 import dotenv from "dotenv";
 import mongoose from 'mongoose';
 import cors from 'cors';
-import authRoutes from './routes/auth-routes.js';
+import authRoutes from './routes/authroutes.js';
+import userRoutes from './routes/userroutes.js';
 
 dotenv.config();
 
@@ -29,3 +30,4 @@ mongoose.connect(process.env.MONGO_URL)
 
 
 app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
