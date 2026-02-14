@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const API = axios.create(
     {
-        baseURL: import.meta.env.backendurl
+        baseURL: import.meta.env.VITE_backendurl
     }
 );
 
