@@ -1,19 +1,43 @@
-function Profile(){
+function Profile({ name, email, onClick, isSelected }) {
+    const initial = name ? name.charAt(0).toUpperCase() : "?";
+
     return (
-        <div className="flex flex-col items-center justify-start h-50 w-50 border rounded-md">
-            <div className="flex items-center justify-center h-15 w-15 pt-5">
-                <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" alt="Profile" className="rounded-full h-15 w-15" />
+        <button
+            onClick={onClick}
+            className={`
+                flex flex-col items-center justify-center p-4 rounded-2xl cursor-pointer
+                border-2 transition-all duration-200 min-w-[120px] max-w-[140px]
+                ${isSelected
+                    ? 'border-neutral-900 bg-neutral-900 text-white shadow-lg scale-[1.02]'
+                    : 'border-neutral-200 bg-white hover:border-neutral-400 hover:shadow-md'
+                }
+            `}
+        >
+            {/* Avatar */}
+            <div className={`
+                w-12 h-12 rounded-full flex items-center justify-center text-lg font-semibold mb-2
+                ${isSelected
+                    ? 'bg-white text-neutral-900'
+                    : 'bg-neutral-100 text-neutral-700'
+                }
+            `}>
+                {initial}
             </div>
-            <div className="pt-8">
-                <h2 className="text-lg font-bold">John Doe</h2>
-                <p className="text-sm text-gray-600">Software Engineer</p>
-            </div>
-            <div className="pt-4">
-                <button className="bg-blue-500 text-white px-4 py-1 rounded-md hover:bg-blue-600">
-                    Log In
-                </button>
-            </div>
-        </div>
+
+            {/* Name */}
+            <h3 className={`text-sm font-medium truncate w-full text-center
+                ${isSelected ? 'text-white' : 'text-neutral-800'}
+            `}>
+                {name}
+            </h3>
+
+            {/* Email */}
+            <p className={`text-xs truncate w-full text-center mt-0.5
+                ${isSelected ? 'text-neutral-300' : 'text-neutral-400'}
+            `}>
+                {email}
+            </p>
+        </button>
     );
 }
 
