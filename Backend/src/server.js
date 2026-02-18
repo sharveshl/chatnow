@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import authRoutes from './routes/authroutes.js';
 import userRoutes from './routes/userroutes.js';
+import messageRoutes from './routes/messageroutes.js';
 
 dotenv.config();
 
@@ -14,20 +15,20 @@ app.use(cors());
 
 const PORT = process.env.PORT || 5000;
 mongoose.connect(process.env.MONGO_URL)
-.then(
-    () => {
-        console.log("DB connected successfully");
-        app.listen(PORT, ()=>{
-            console.log(`Server is running on port ${PORT}`);
-        });
-    }
-)
-.catch(
-    (err) => {
-        console.log("DB connection failed", err);
-    }
-)
-
+    .then(
+        () => {
+            console.log("DB connected successfully");
+            app.listen(PORT, () => {
+                console.log(`Server is running on port ${PORT}`);
+            });
+        }
+    )
+    .catch(
+        (err) => {
+            console.log("DB connection failed", err);
+        }
+    )
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/messages', messageRoutes);

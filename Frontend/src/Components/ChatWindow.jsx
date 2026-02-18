@@ -1,0 +1,169 @@
+import { useState, useRef, useEffect } from "react";
+import API from "../service/api";
+import MessageBubble from "./MessageBubble";
+
+function ChatWindow({ activeChat, currentUser, onMessageSent }) {
+    const [messages, setMessages] = useState([]);
+    const [newMessage, setNewMessage] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [sending, setSending] = useState(false);
+    const messagesEndRef = useRef(null);
+    const pollInterval = useRef(null);
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+
+    // Fetch messages when active chat changes
+    useEffect(() => {
+        if (!activeChat?.username) return;
+
+        const fetchMessages = async () => {
+            setLoading(true);
+            try {
+                const res = await API.get(`/messages/${activeChat.username}`);
+                setMessages(res.data);
+            } catch {
+                setMessages([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchMessages();
+
+        // Poll for new messages every 3 seconds
+        pollInterval.current = setInterval(async () => {
+            try {
+                const res = await API.get(`/messages/${activeChat.username}`);
+                setMessages(res.data);
+            } catch {
+                // silently fail
+            }
+        }, 3000);
+
+        return () => {
+            if (pollInterval.current) clearInterval(pollInterval.current);
+        };
+    }, [activeChat?.username]);
+
+    // Scroll to bottom when messages change
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages]);
+
+    const handleSend = async (e) => {
+        e.preventDefault();
+        if (!newMessage.trim() || sending) return;
+
+        setSending(true);
+        try {
+            await API.post("/messages/send", {
+                receiverUsername: activeChat.username,
+                content: newMessage.trim()
+            });
+            setNewMessage("");
+
+            // Refresh messages
+            const res = await API.get(`/messages/${activeChat.username}`);
+            setMessages(res.data);
+            onMessageSent?.();
+        } catch {
+            // silently fail
+        } finally {
+            setSending(false);
+        }
+    };
+
+    const getInitial = (name) => name ? name.charAt(0).toUpperCase() : "?";
+
+    // Empty state
+    if (!activeChat) {
+        return (
+            <div className="flex-1 flex flex-col items-center justify-center bg-[#fafafa] text-center px-6">
+                <div className="w-20 h-20 bg-neutral-100 rounded-full flex items-center justify-center mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor" className="w-10 h-10 text-neutral-300">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" />
+                    </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-neutral-900 mb-1">ChatNow</h3>
+                <p className="text-sm text-neutral-400 max-w-xs">
+                    Select a conversation or search for a user to start chatting
+                </p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex-1 flex flex-col bg-[#fafafa] h-full">
+            {/* Chat Header */}
+            <div className="px-6 py-4 bg-white border-b border-neutral-200 flex items-center gap-3">
+                <div className="w-10 h-10 bg-neutral-900 rounded-full flex items-center justify-center text-white text-sm font-semibold">
+                    {getInitial(activeChat.name)}
+                </div>
+                <div>
+                    <h3 className="text-sm font-semibold text-neutral-900">{activeChat.name}</h3>
+                    <p className="text-xs text-neutral-400">@{activeChat.username}</p>
+                </div>
+            </div>
+
+            {/* Messages Area */}
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+                {loading ? (
+                    <div className="flex items-center justify-center h-full">
+                        <div className="w-6 h-6 border-2 border-neutral-200 border-t-neutral-900 rounded-full animate-spin" />
+                    </div>
+                ) : messages.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-center">
+                        <p className="text-sm text-neutral-400">No messages yet</p>
+                        <p className="text-xs text-neutral-300 mt-1">Say hello to {activeChat.name}!</p>
+                    </div>
+                ) : (
+                    <>
+                        {/* Date grouping could be added here */}
+                        {messages.map((msg) => (
+                            <MessageBubble
+                                key={msg._id}
+                                message={msg}
+                                isOwn={msg.sender._id === currentUser?._id || msg.sender.username === currentUser?.username}
+                            />
+                        ))}
+                        <div ref={messagesEndRef} />
+                    </>
+                )}
+            </div>
+
+            {/* Message Input */}
+            <div className="px-4 py-3 bg-white border-t border-neutral-200">
+                <form onSubmit={handleSend} className="flex items-center gap-2">
+                    <input
+                        type="text"
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        placeholder="Type a message..."
+                        className="flex-1 px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm
+                            text-neutral-900 placeholder-neutral-300
+                            focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent"
+                    />
+                    <button
+                        type="submit"
+                        disabled={!newMessage.trim() || sending}
+                        className="w-11 h-11 bg-neutral-900 text-white rounded-xl flex items-center justify-center
+                            hover:bg-neutral-800 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed
+                            transition-all cursor-pointer flex-shrink-0"
+                    >
+                        {sending ? (
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
+                            </svg>
+                        )}
+                    </button>
+                </form>
+            </div>
+        </div>
+    );
+}
+
+export default ChatWindow;

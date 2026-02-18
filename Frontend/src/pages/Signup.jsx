@@ -138,7 +138,7 @@ function Signup() {
                                 onChange={handleChange}
                                 placeholder="you@example.com"
                                 className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm
-                                    text-neutral-900 placeholder-neutral-300
+                                       text-neutral-900 placeholder-neutral-300
                                     focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent
                                     transition-all"
                             />
