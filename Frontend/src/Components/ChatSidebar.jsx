@@ -1,7 +1,7 @@
 import { useState } from "react";
 import API from "../service/api";
 
-function ChatSidebar({ conversations, activeChat, onSelectChat, currentUser, onNewChat }) {
+function ChatSidebar({ conversations, activeChat, onSelectChat, currentUser, onNewChat, onOpenOwnProfile, backendUrl }) {
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
@@ -53,20 +53,36 @@ function ChatSidebar({ conversations, activeChat, onSelectChat, currentUser, onN
 
     const getInitial = (name) => name ? name.charAt(0).toUpperCase() : "?";
 
+    const getPhotoUrl = (photoPath) => {
+        if (!photoPath) return null;
+        const base = backendUrl?.replace(/\/api\/?$/, "") || "";
+        return `${base}${photoPath}`;
+    };
+
+    const currentUserPhoto = getPhotoUrl(currentUser?.profilePhoto);
+
     return (
         <div className="w-full h-full flex flex-col bg-white border-r border-neutral-200">
             {/* Header */}
             <div className="p-4 border-b border-neutral-100">
                 <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-neutral-900 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-                            {getInitial(currentUser?.name)}
+                    <button
+                        onClick={onOpenOwnProfile}
+                        className="flex items-center gap-3 hover:bg-neutral-50 rounded-xl px-2 py-1.5 -ml-2 transition-colors cursor-pointer"
+                        title="View your profile"
+                    >
+                        <div className="w-9 h-9 bg-neutral-900 rounded-full flex items-center justify-center text-white text-sm font-semibold overflow-hidden">
+                            {currentUserPhoto ? (
+                                <img src={currentUserPhoto} alt={currentUser?.name} className="w-full h-full object-cover" />
+                            ) : (
+                                getInitial(currentUser?.name)
+                            )}
                         </div>
                         <div>
-                            <h2 className="text-sm font-semibold text-neutral-900">{currentUser?.name || "..."}</h2>
-                            <p className="text-xs text-neutral-400">@{currentUser?.username || "..."}</p>
+                            <h2 className="text-sm font-semibold text-neutral-900 text-left">{currentUser?.name || "..."}</h2>
+                            <p className="text-xs text-neutral-400 text-left">@{currentUser?.username || "..."}</p>
                         </div>
-                    </div>
+                    </button>
                     <button
                         onClick={() => setShowSearch(!showSearch)}
                         className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-neutral-100 transition-colors cursor-pointer"
@@ -110,8 +126,12 @@ function ChatSidebar({ conversations, activeChat, onSelectChat, currentUser, onN
                                             onClick={() => handleSelectSearchResult(user)}
                                             className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-neutral-50 rounded-xl transition-colors cursor-pointer"
                                         >
-                                            <div className="w-8 h-8 bg-neutral-200 rounded-full flex items-center justify-center text-neutral-600 text-xs font-semibold flex-shrink-0">
-                                                {getInitial(user.name)}
+                                            <div className="w-8 h-8 bg-neutral-200 rounded-full flex items-center justify-center text-neutral-600 text-xs font-semibold flex-shrink-0 overflow-hidden">
+                                                {getPhotoUrl(user.profilePhoto) ? (
+                                                    <img src={getPhotoUrl(user.profilePhoto)} alt={user.name} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    getInitial(user.name)
+                                                )}
                                             </div>
                                             <div className="text-left min-w-0">
                                                 <p className="text-sm font-medium text-neutral-900 truncate">{user.name}</p>
@@ -143,6 +163,7 @@ function ChatSidebar({ conversations, activeChat, onSelectChat, currentUser, onN
                 ) : (
                     conversations.map((conv) => {
                         const isActive = activeChat?.username === conv.user.username;
+                        const convPhoto = getPhotoUrl(conv.user.profilePhoto);
                         return (
                             <button
                                 key={conv.user._id}
@@ -151,10 +172,14 @@ function ChatSidebar({ conversations, activeChat, onSelectChat, currentUser, onN
                                     ${isActive ? 'bg-neutral-100' : 'hover:bg-neutral-50'}
                                 `}
                             >
-                                <div className={`w-11 h-11 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0
+                                <div className={`w-11 h-11 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0 overflow-hidden
                                     ${isActive ? 'bg-neutral-900 text-white' : 'bg-neutral-200 text-neutral-600'}
                                 `}>
-                                    {getInitial(conv.user.name)}
+                                    {convPhoto ? (
+                                        <img src={convPhoto} alt={conv.user.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                        getInitial(conv.user.name)
+                                    )}
                                 </div>
                                 <div className="flex-1 min-w-0 text-left">
                                     <div className="flex items-center justify-between">

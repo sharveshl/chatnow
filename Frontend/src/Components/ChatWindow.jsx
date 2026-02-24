@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import API from "../service/api";
 import MessageBubble from "./MessageBubble";
 
-function ChatWindow({ activeChat, currentUser, onMessageSent }) {
+function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile, backendUrl }) {
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState("");
     const [loading, setLoading] = useState(false);
@@ -77,6 +77,12 @@ function ChatWindow({ activeChat, currentUser, onMessageSent }) {
 
     const getInitial = (name) => name ? name.charAt(0).toUpperCase() : "?";
 
+    const getPhotoUrl = (photoPath) => {
+        if (!photoPath) return null;
+        const base = backendUrl?.replace(/\/api\/?$/, "") || "";
+        return `${base}${photoPath}`;
+    };
+
     // Empty state
     if (!activeChat) {
         return (
@@ -94,18 +100,27 @@ function ChatWindow({ activeChat, currentUser, onMessageSent }) {
         );
     }
 
+    const chatPhoto = getPhotoUrl(activeChat.profilePhoto);
+
     return (
         <div className="flex-1 flex flex-col bg-[#fafafa] h-full">
-            {/* Chat Header */}
-            <div className="px-6 py-4 bg-white border-b border-neutral-200 flex items-center gap-3">
-                <div className="w-10 h-10 bg-neutral-900 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-                    {getInitial(activeChat.name)}
+            {/* Chat Header — clickable to open profile */}
+            <button
+                onClick={() => onOpenUserProfile?.(activeChat)}
+                className="px-6 py-4 bg-white border-b border-neutral-200 flex items-center gap-3 hover:bg-neutral-50 transition-colors cursor-pointer text-left w-full"
+            >
+                <div className="w-10 h-10 bg-neutral-900 rounded-full flex items-center justify-center text-white text-sm font-semibold overflow-hidden">
+                    {chatPhoto ? (
+                        <img src={chatPhoto} alt={activeChat.name} className="w-full h-full object-cover" />
+                    ) : (
+                        getInitial(activeChat.name)
+                    )}
                 </div>
                 <div>
                     <h3 className="text-sm font-semibold text-neutral-900">{activeChat.name}</h3>
                     <p className="text-xs text-neutral-400">@{activeChat.username}</p>
                 </div>
-            </div>
+            </button>
 
             {/* Messages Area */}
             <div className="flex-1 overflow-y-auto px-6 py-4">

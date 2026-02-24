@@ -3,13 +3,18 @@ import { useNavigate } from "react-router-dom";
 import API from "../service/api";
 import ChatSidebar from "../Components/ChatSidebar";
 import ChatWindow from "../Components/ChatWindow";
+import ProfilePanel from "../Components/ProfilePanel";
 
 function Dashboard() {
     const [currentUser, setCurrentUser] = useState(null);
     const [conversations, setConversations] = useState([]);
     const [activeChat, setActiveChat] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [profileUser, setProfileUser] = useState(null); // user whose profile is open
+    const [isOwnProfile, setIsOwnProfile] = useState(false);
     const navigate = useNavigate();
+
+    const backendUrl = import.meta.env.VITE_backendurl;
 
     // Fetch current user
     useEffect(() => {
@@ -73,6 +78,28 @@ function Dashboard() {
         navigate("/login");
     };
 
+    // Profile handlers
+    const handleOpenOwnProfile = () => {
+        setProfileUser(currentUser);
+        setIsOwnProfile(true);
+    };
+
+    const handleOpenUserProfile = (user) => {
+        setProfileUser(user);
+        setIsOwnProfile(user.username === currentUser?.username);
+    };
+
+    const handleCloseProfile = () => {
+        setProfileUser(null);
+        setIsOwnProfile(false);
+    };
+
+    const handleProfileUpdated = (updatedUser) => {
+        if (isOwnProfile) {
+            setCurrentUser(updatedUser);
+        }
+    };
+
     if (loading && !currentUser) {
         return (
             <div className="min-h-screen bg-[#fafafa] flex items-center justify-center">
@@ -100,7 +127,7 @@ function Dashboard() {
             </div>
 
             {/* Main content — two column layout */}
-            <div className="flex-1 flex overflow-hidden">
+            <div className="flex-1 flex overflow-hidden relative">
                 {/* Left column — sidebar */}
                 <div className="w-[360px] flex-shrink-0">
                     <ChatSidebar
@@ -109,6 +136,8 @@ function Dashboard() {
                         onSelectChat={handleSelectChat}
                         currentUser={currentUser}
                         onNewChat={handleNewChat}
+                        onOpenOwnProfile={handleOpenOwnProfile}
+                        backendUrl={backendUrl}
                     />
                 </div>
 
@@ -117,7 +146,20 @@ function Dashboard() {
                     activeChat={activeChat}
                     currentUser={currentUser}
                     onMessageSent={fetchConversations}
+                    onOpenUserProfile={handleOpenUserProfile}
+                    backendUrl={backendUrl}
                 />
+
+                {/* Profile Panel Overlay */}
+                {profileUser && (
+                    <ProfilePanel
+                        user={profileUser}
+                        isOwnProfile={isOwnProfile}
+                        onClose={handleCloseProfile}
+                        onProfileUpdated={handleProfileUpdated}
+                        backendUrl={backendUrl}
+                    />
+                )}
             </div>
         </div>
     );
