@@ -1,14 +1,14 @@
 import { useState, useRef, useEffect } from "react";
 import API from "../service/api";
+import { getSocket } from "../service/socket";
 import MessageBubble from "./MessageBubble";
 
-function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile, backendUrl }) {
+function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile, backendUrl, onlineUsers }) {
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState("");
     const [loading, setLoading] = useState(false);
     const [sending, setSending] = useState(false);
     const messagesEndRef = useRef(null);
-    const pollInterval = useRef(null);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -32,20 +32,58 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
 
         fetchMessages();
 
-        // Poll for new messages every 3 seconds
-        pollInterval.current = setInterval(async () => {
-            try {
-                const res = await API.get(`/messages/${activeChat.username}`);
-                setMessages(res.data);
-            } catch {
-                // silently fail
+        // Emit read receipt for this conversation
+        const socket = getSocket();
+        if (socket) {
+            socket.emit('message_read', { senderUsername: activeChat.username });
+        }
+    }, [activeChat?.username]);
+
+    // ─── Socket.IO listeners ────────────────────────────────────
+    useEffect(() => {
+        const socket = getSocket();
+        if (!socket || !activeChat?.username) return;
+
+        // Receive a new message
+        const handleReceiveMessage = (message) => {
+            const senderUsername = message.sender?.username;
+            if (senderUsername === activeChat.username) {
+                setMessages(prev => [...prev, message]);
+                // Auto-send read receipt since this chat is open
+                socket.emit('message_read', { senderUsername: activeChat.username });
             }
-        }, 3000);
+        };
+
+        // A message we sent was delivered
+        const handleDelivered = ({ messageId }) => {
+            setMessages(prev => prev.map(msg =>
+                msg._id === messageId ? { ...msg, status: 'delivered' } : msg
+            ));
+        };
+
+        // Our messages were read by the chat partner
+        const handleMessagesRead = ({ readerUsername }) => {
+            if (readerUsername === activeChat.username) {
+                setMessages(prev => prev.map(msg => {
+                    const isMine = msg.sender?._id === currentUser?._id || msg.sender?.username === currentUser?.username;
+                    if (isMine && msg.status !== 'read') {
+                        return { ...msg, status: 'read' };
+                    }
+                    return msg;
+                }));
+            }
+        };
+
+        socket.on('receive_message', handleReceiveMessage);
+        socket.on('message_delivered', handleDelivered);
+        socket.on('messages_read', handleMessagesRead);
 
         return () => {
-            if (pollInterval.current) clearInterval(pollInterval.current);
+            socket.off('receive_message', handleReceiveMessage);
+            socket.off('message_delivered', handleDelivered);
+            socket.off('messages_read', handleMessagesRead);
         };
-    }, [activeChat?.username]);
+    }, [activeChat?.username, currentUser]);
 
     // Scroll to bottom when messages change
     useEffect(() => {
@@ -56,23 +94,26 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
         e.preventDefault();
         if (!newMessage.trim() || sending) return;
 
-        setSending(true);
-        try {
-            await API.post("/messages/send", {
-                receiverUsername: activeChat.username,
-                content: newMessage.trim()
-            });
-            setNewMessage("");
+        const socket = getSocket();
+        if (!socket) return;
 
-            // Refresh messages
-            const res = await API.get(`/messages/${activeChat.username}`);
-            setMessages(res.data);
-            onMessageSent?.();
-        } catch {
-            // silently fail
-        } finally {
+        setSending(true);
+
+        socket.emit('send_message', {
+            receiverUsername: activeChat.username,
+            content: newMessage.trim()
+        }, (response) => {
+            if (response?.error) {
+                console.error('Send error:', response.error);
+            } else if (response?.message) {
+                // ACK — message saved, add to UI
+                setMessages(prev => [...prev, response.message]);
+                onMessageSent?.();
+            }
             setSending(false);
-        }
+        });
+
+        setNewMessage("");
     };
 
     const getInitial = (name) => name ? name.charAt(0).toUpperCase() : "?";
@@ -82,6 +123,9 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
         const base = backendUrl?.replace(/\/api\/?$/, "") || "";
         return `${base}${photoPath}`;
     };
+
+    // Check if the active chat user is online
+    const isOnline = activeChat && onlineUsers?.has(activeChat._id);
 
     // Empty state
     if (!activeChat) {
@@ -109,16 +153,28 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
                 onClick={() => onOpenUserProfile?.(activeChat)}
                 className="px-6 py-4 bg-white border-b border-neutral-200 flex items-center gap-3 hover:bg-neutral-50 transition-colors cursor-pointer text-left w-full"
             >
-                <div className="w-10 h-10 bg-neutral-900 rounded-full flex items-center justify-center text-white text-sm font-semibold overflow-hidden">
-                    {chatPhoto ? (
-                        <img src={chatPhoto} alt={activeChat.name} className="w-full h-full object-cover" />
-                    ) : (
-                        getInitial(activeChat.name)
+                <div className="relative">
+                    <div className="w-10 h-10 bg-neutral-900 rounded-full flex items-center justify-center text-white text-sm font-semibold overflow-hidden">
+                        {chatPhoto ? (
+                            <img src={chatPhoto} alt={activeChat.name} className="w-full h-full object-cover" />
+                        ) : (
+                            getInitial(activeChat.name)
+                        )}
+                    </div>
+                    {/* Online indicator */}
+                    {isOnline && (
+                        <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></span>
                     )}
                 </div>
                 <div>
                     <h3 className="text-sm font-semibold text-neutral-900">{activeChat.name}</h3>
-                    <p className="text-xs text-neutral-400">@{activeChat.username}</p>
+                    <p className="text-xs text-neutral-400">
+                        {isOnline ? (
+                            <span className="text-green-600">Online</span>
+                        ) : (
+                            `@${activeChat.username}`
+                        )}
+                    </p>
                 </div>
             </button>
 
@@ -135,7 +191,6 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
                     </div>
                 ) : (
                     <>
-                        {/* Date grouping could be added here */}
                         {messages.map((msg) => (
                             <MessageBubble
                                 key={msg._id}

@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../service/api";
+import { connectSocket, disconnectSocket, getSocket } from "../service/socket";
 import ChatSidebar from "../Components/ChatSidebar";
 import ChatWindow from "../Components/ChatWindow";
 import ProfilePanel from "../Components/ProfilePanel";
@@ -10,11 +11,18 @@ function Dashboard() {
     const [conversations, setConversations] = useState([]);
     const [activeChat, setActiveChat] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [profileUser, setProfileUser] = useState(null); // user whose profile is open
+    const [profileUser, setProfileUser] = useState(null);
     const [isOwnProfile, setIsOwnProfile] = useState(false);
+    const [onlineUsers, setOnlineUsers] = useState(new Set());
     const navigate = useNavigate();
+    const activeChatRef = useRef(null);
 
     const backendUrl = import.meta.env.VITE_backendurl;
+
+    // Keep ref in sync with state so socket callbacks see latest value
+    useEffect(() => {
+        activeChatRef.current = activeChat;
+    }, [activeChat]);
 
     // Fetch current user
     useEffect(() => {
@@ -23,7 +31,6 @@ function Dashboard() {
                 const res = await API.get("/users/me");
                 setCurrentUser(res.data);
             } catch {
-                // Token invalid — redirect to login
                 localStorage.removeItem("token");
                 navigate("/login");
             }
@@ -31,7 +38,7 @@ function Dashboard() {
         fetchUser();
     }, [navigate]);
 
-    // Fetch conversations
+    // Fetch conversations (initial load)
     const fetchConversations = useCallback(async () => {
         try {
             const res = await API.get("/messages/conversations/list");
@@ -45,21 +52,77 @@ function Dashboard() {
 
     useEffect(() => {
         fetchConversations();
-
-        // Poll conversations every 5 seconds
-        const interval = setInterval(fetchConversations, 5000);
-        return () => clearInterval(interval);
     }, [fetchConversations]);
+
+    // ─── Socket.IO Setup ────────────────────────────────────────
+    useEffect(() => {
+        if (!currentUser) return;
+
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const socket = connectSocket(token);
+
+        // Online users list (received on connection)
+        socket.on('online_users', (userIds) => {
+            setOnlineUsers(new Set(userIds));
+        });
+
+        socket.on('user_online', ({ userId }) => {
+            setOnlineUsers(prev => new Set([...prev, userId]));
+        });
+
+        socket.on('user_offline', ({ userId }) => {
+            setOnlineUsers(prev => {
+                const next = new Set(prev);
+                next.delete(userId);
+                return next;
+            });
+        });
+
+        // Receive a new message from someone
+        socket.on('receive_message', (message) => {
+            const senderUsername = message.sender.username;
+            const current = activeChatRef.current;
+
+            // If the chat with this sender is currently open, add the message
+            // and emit a read receipt
+            if (current && current.username === senderUsername) {
+                // Will be handled by ChatWindow's listener
+            }
+
+            // Update conversations list
+            fetchConversations();
+        });
+
+        // Message delivered notification
+        socket.on('message_delivered', ({ messageId }) => {
+            // ChatWindow handles this directly
+        });
+
+        // Messages read notification
+        socket.on('messages_read', ({ readerUsername }) => {
+            // ChatWindow handles this directly
+        });
+
+        return () => {
+            socket.off('online_users');
+            socket.off('user_online');
+            socket.off('user_offline');
+            socket.off('receive_message');
+            socket.off('message_delivered');
+            socket.off('messages_read');
+            disconnectSocket();
+        };
+    }, [currentUser, fetchConversations]);
 
     const handleSelectChat = (user) => {
         setActiveChat(user);
     };
 
     const handleNewChat = (user) => {
-        // Check if conversation already exists
         const exists = conversations.find((c) => c.user.username === user.username);
         if (!exists) {
-            // Add temporary conversation entry
             setConversations((prev) => [
                 {
                     user,
@@ -74,6 +137,7 @@ function Dashboard() {
     };
 
     const handleLogout = () => {
+        disconnectSocket();
         localStorage.removeItem("token");
         navigate("/login");
     };
@@ -138,6 +202,7 @@ function Dashboard() {
                         onNewChat={handleNewChat}
                         onOpenOwnProfile={handleOpenOwnProfile}
                         backendUrl={backendUrl}
+                        onlineUsers={onlineUsers}
                     />
                 </div>
 
@@ -148,6 +213,7 @@ function Dashboard() {
                     onMessageSent={fetchConversations}
                     onOpenUserProfile={handleOpenUserProfile}
                     backendUrl={backendUrl}
+                    onlineUsers={onlineUsers}
                 />
 
                 {/* Profile Panel Overlay */}

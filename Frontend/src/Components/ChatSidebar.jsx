@@ -1,7 +1,7 @@
 import { useState } from "react";
 import API from "../service/api";
 
-function ChatSidebar({ conversations, activeChat, onSelectChat, currentUser, onNewChat, onOpenOwnProfile, backendUrl }) {
+function ChatSidebar({ conversations, activeChat, onSelectChat, currentUser, onNewChat, onOpenOwnProfile, backendUrl, onlineUsers }) {
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
@@ -172,13 +172,18 @@ function ChatSidebar({ conversations, activeChat, onSelectChat, currentUser, onN
                                     ${isActive ? 'bg-neutral-100' : 'hover:bg-neutral-50'}
                                 `}
                             >
-                                <div className={`w-11 h-11 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0 overflow-hidden
-                                    ${isActive ? 'bg-neutral-900 text-white' : 'bg-neutral-200 text-neutral-600'}
-                                `}>
-                                    {convPhoto ? (
-                                        <img src={convPhoto} alt={conv.user.name} className="w-full h-full object-cover" />
-                                    ) : (
-                                        getInitial(conv.user.name)
+                                <div className="relative flex-shrink-0">
+                                    <div className={`w-11 h-11 rounded-full flex items-center justify-center text-sm font-semibold overflow-hidden
+                                        ${isActive ? 'bg-neutral-900 text-white' : 'bg-neutral-200 text-neutral-600'}
+                                    `}>
+                                        {convPhoto ? (
+                                            <img src={convPhoto} alt={conv.user.name} className="w-full h-full object-cover" />
+                                        ) : (
+                                            getInitial(conv.user.name)
+                                        )}
+                                    </div>
+                                    {onlineUsers?.has(conv.user._id) && (
+                                        <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></span>
                                     )}
                                 </div>
                                 <div className="flex-1 min-w-0 text-left">
@@ -202,7 +207,7 @@ function ChatSidebar({ conversations, activeChat, onSelectChat, currentUser, onN
                     })
                 )}
             </div>
-        </div>
+        </div >
     );
 }
 

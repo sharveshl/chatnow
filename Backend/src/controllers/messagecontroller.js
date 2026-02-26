@@ -29,8 +29,8 @@ export const sendMessage = async (req, res) => {
         await message.save();
 
         const populated = await Message.findById(message._id)
-            .populate('sender', 'username name email')
-            .populate('receiver', 'username name email');
+            .populate('sender', 'username name email profilePhoto')
+            .populate('receiver', 'username name email profilePhoto');
 
         return res.status(201).json(populated);
     } catch (err) {
@@ -56,13 +56,13 @@ export const getMessages = async (req, res) => {
             ]
         })
             .sort({ createdAt: 1 })
-            .populate('sender', 'username name email')
-            .populate('receiver', 'username name email');
+            .populate('sender', 'username name email profilePhoto')
+            .populate('receiver', 'username name email profilePhoto');
 
         // Mark received messages as read
         await Message.updateMany(
-            { sender: otherUser._id, receiver: currentUserId, read: false },
-            { $set: { read: true } }
+            { sender: otherUser._id, receiver: currentUserId, status: { $ne: 'read' } },
+            { $set: { status: 'read' } }
         );
 
         return res.status(200).json(messages);
@@ -104,7 +104,7 @@ export const getConversations = async (req, res) => {
                                 {
                                     $and: [
                                         { $eq: ["$receiver", currentUserId] },
-                                        { $eq: ["$read", false] }
+                                        { $ne: ["$status", "read"] }
                                     ]
                                 },
                                 1,
