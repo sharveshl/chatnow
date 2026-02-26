@@ -118,6 +118,15 @@ function Dashboard() {
 
     const handleSelectChat = (user) => {
         setActiveChat(user);
+        // Emit read receipt when selecting a chat
+        const socket = getSocket();
+        if (socket && user?.username) {
+            socket.emit('message_read', { senderUsername: user.username });
+        }
+    };
+
+    const handleCloseChat = () => {
+        setActiveChat(null);
     };
 
     const handleNewChat = (user) => {
@@ -214,6 +223,7 @@ function Dashboard() {
                     onOpenUserProfile={handleOpenUserProfile}
                     backendUrl={backendUrl}
                     onlineUsers={onlineUsers}
+                    onCloseChat={handleCloseChat}
                 />
 
                 {/* Profile Panel Overlay */}

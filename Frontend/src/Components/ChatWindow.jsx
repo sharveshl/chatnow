@@ -3,7 +3,7 @@ import API from "../service/api";
 import { getSocket } from "../service/socket";
 import MessageBubble from "./MessageBubble";
 
-function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile, backendUrl, onlineUsers }) {
+function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile, backendUrl, onlineUsers, onCloseChat }) {
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState("");
     const [loading, setLoading] = useState(false);
@@ -89,6 +89,18 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
     useEffect(() => {
         scrollToBottom();
     }, [messages]);
+
+    // ESC key to close chat
+    useEffect(() => {
+        if (!activeChat) return;
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                onCloseChat?.();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [activeChat, onCloseChat]);
 
     const handleSend = async (e) => {
         e.preventDefault();
