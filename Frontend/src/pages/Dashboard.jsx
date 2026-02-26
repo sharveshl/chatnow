@@ -19,7 +19,6 @@ function Dashboard() {
 
     const backendUrl = import.meta.env.VITE_backendurl;
 
-    // Keep ref in sync with state so socket callbacks see latest value
     useEffect(() => {
         activeChatRef.current = activeChat;
     }, [activeChat]);
@@ -54,7 +53,7 @@ function Dashboard() {
         fetchConversations();
     }, [fetchConversations]);
 
-    // ─── Socket.IO Setup ────────────────────────────────────────
+    // ─── Socket.IO Setup
     useEffect(() => {
         if (!currentUser) return;
 
@@ -63,7 +62,6 @@ function Dashboard() {
 
         const socket = connectSocket(token);
 
-        // Online users list (received on connection)
         socket.on('online_users', (userIds) => {
             setOnlineUsers(new Set(userIds));
         });
@@ -80,30 +78,12 @@ function Dashboard() {
             });
         });
 
-        // Receive a new message from someone
-        socket.on('receive_message', (message) => {
-            const senderUsername = message.sender.username;
-            const current = activeChatRef.current;
-
-            // If the chat with this sender is currently open, add the message
-            // and emit a read receipt
-            if (current && current.username === senderUsername) {
-                // Will be handled by ChatWindow's listener
-            }
-
-            // Update conversations list
+        socket.on('receive_message', () => {
             fetchConversations();
         });
 
-        // Message delivered notification
-        socket.on('message_delivered', ({ messageId }) => {
-            // ChatWindow handles this directly
-        });
-
-        // Messages read notification
-        socket.on('messages_read', ({ readerUsername }) => {
-            // ChatWindow handles this directly
-        });
+        socket.on('message_delivered', () => { });
+        socket.on('messages_read', () => { });
 
         return () => {
             socket.off('online_users');
@@ -118,7 +98,6 @@ function Dashboard() {
 
     const handleSelectChat = (user) => {
         setActiveChat(user);
-        // Emit read receipt when selecting a chat
         const socket = getSocket();
         if (socket && user?.username) {
             socket.emit('message_read', { senderUsername: user.username });
@@ -175,34 +154,30 @@ function Dashboard() {
 
     if (loading && !currentUser) {
         return (
-            <div className="min-h-screen bg-[#fafafa] flex items-center justify-center">
-                <div className="w-8 h-8 border-2 border-neutral-200 border-t-neutral-900 rounded-full animate-spin" />
+            <div className="min-h-screen bg-[#f0faf0] flex items-center justify-center">
+                <div className="w-8 h-8 border-2 border-emerald-200 border-t-emerald-500 rounded-full animate-spin" />
             </div>
         );
     }
 
     return (
-        <div className="h-screen flex flex-col bg-[#fafafa]">
+        <div className="h-screen flex flex-col bg-[#f0faf0] overflow-hidden">
             {/* Top bar */}
-            <div className="h-12 bg-neutral-900 flex items-center justify-between px-5 flex-shrink-0">
-                <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 bg-white rounded-lg flex items-center justify-center">
-                        <span className="text-neutral-900 text-xs font-bold">C</span>
-                    </div>
-                    <span className="text-white text-sm font-semibold tracking-tight">ChatNow</span>
+            <div className="h-14 bg-emerald-500 flex items-center justify-between px-5 flex-shrink-0">
+                <div className="flex items-center gap-2.5">
+                    <img
+                        src="/chatnow new logo svg.svg"
+                        alt="ChatNow"
+                        className="w-9 h-9 rounded-lg object-contain bg-white p-0.5"
+                    />
+                    <span className="text-white text-sm font-bold tracking-tight">ChatNow</span>
                 </div>
-                <button
-                    onClick={handleLogout}
-                    className="text-neutral-400 hover:text-white text-xs font-medium transition-colors cursor-pointer"
-                >
-                    Log out
-                </button>
             </div>
 
-            {/* Main content — two column layout */}
-            <div className="flex-1 flex overflow-hidden relative">
+            {/* Main content — fixed two column layout, no page scroll */}
+            <div className="flex-1 flex overflow-hidden relative min-h-0">
                 {/* Left column — sidebar */}
-                <div className="w-[360px] flex-shrink-0">
+                <div className="w-[360px] flex-shrink-0 flex flex-col min-h-0">
                     <ChatSidebar
                         conversations={conversations}
                         activeChat={activeChat}
@@ -234,6 +209,7 @@ function Dashboard() {
                         onClose={handleCloseProfile}
                         onProfileUpdated={handleProfileUpdated}
                         backendUrl={backendUrl}
+                        onLogout={isOwnProfile ? handleLogout : null}
                     />
                 )}
             </div>

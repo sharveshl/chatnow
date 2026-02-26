@@ -21,7 +21,7 @@ function SplashScreen({ onFinish }) {
 
     return (
         <div
-            className={`fixed inset-0 z-[9999] flex items-center justify-center bg-neutral-950 transition-opacity duration-700
+            className={`fixed inset-0 z-[9999] flex items-center justify-center bg-[#0a2818] transition-opacity duration-700
                 ${fadeOut ? 'opacity-0' : 'opacity-100'}
             `}
         >
@@ -61,7 +61,7 @@ function SplashScreen({ onFinish }) {
                 {/* Logo — centered, scaled up with entrance animation */}
                 <div className="relative z-10 animate-[scaleIn_0.8s_ease-out_forwards]">
                     <img
-                        src="/chatnow logo png format.png"
+                        src="/chatnow new logo png.png"
                         alt="ChatNow"
                         className="w-28 h-28 object-contain drop-shadow-[0_0_30px_rgba(255,255,255,0.15)]"
                     />

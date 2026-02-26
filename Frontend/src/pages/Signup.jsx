@@ -103,7 +103,7 @@ function Signup() {
                                 placeholder="johndoe"
                                 className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm
                                     text-neutral-900 placeholder-neutral-300
-                                    focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent
+                                    focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent
                                     transition-all"
                             />
                         </div>
@@ -175,8 +175,8 @@ function Signup() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-neutral-900 text-white py-3 rounded-xl text-sm font-medium
-                                hover:bg-neutral-800 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed
+                            className="w-full bg-emerald-500 text-white py-3 rounded-xl text-sm font-medium
+                                hover:bg-emerald-600 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed
                                 transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
                         >
                             {loading ? (
@@ -196,7 +196,7 @@ function Signup() {
                     Already have an account?{" "}
                     <Link
                         to="/login"
-                        className="text-neutral-900 font-medium hover:underline"
+                        className="text-emerald-600 font-medium hover:underline"
                     >
                         Sign in
                     </Link>

@@ -32,36 +32,31 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
 
         fetchMessages();
 
-        // Emit read receipt for this conversation
         const socket = getSocket();
         if (socket) {
             socket.emit('message_read', { senderUsername: activeChat.username });
         }
     }, [activeChat?.username]);
 
-    // ─── Socket.IO listeners ────────────────────────────────────
+    // Socket.IO listeners
     useEffect(() => {
         const socket = getSocket();
         if (!socket || !activeChat?.username) return;
 
-        // Receive a new message
         const handleReceiveMessage = (message) => {
             const senderUsername = message.sender?.username;
             if (senderUsername === activeChat.username) {
                 setMessages(prev => [...prev, message]);
-                // Auto-send read receipt since this chat is open
                 socket.emit('message_read', { senderUsername: activeChat.username });
             }
         };
 
-        // A message we sent was delivered
         const handleDelivered = ({ messageId }) => {
             setMessages(prev => prev.map(msg =>
                 msg._id === messageId ? { ...msg, status: 'delivered' } : msg
             ));
         };
 
-        // Our messages were read by the chat partner
         const handleMessagesRead = ({ readerUsername }) => {
             if (readerUsername === activeChat.username) {
                 setMessages(prev => prev.map(msg => {
@@ -85,7 +80,6 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
         };
     }, [activeChat?.username, currentUser]);
 
-    // Scroll to bottom when messages change
     useEffect(() => {
         scrollToBottom();
     }, [messages]);
@@ -118,7 +112,6 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
             if (response?.error) {
                 console.error('Send error:', response.error);
             } else if (response?.message) {
-                // ACK — message saved, add to UI
                 setMessages(prev => [...prev, response.message]);
                 onMessageSent?.();
             }
@@ -136,15 +129,14 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
         return `${base}${photoPath}`;
     };
 
-    // Check if the active chat user is online
     const isOnline = activeChat && onlineUsers?.has(activeChat._id);
 
     // Empty state
     if (!activeChat) {
         return (
-            <div className="flex-1 flex flex-col items-center justify-center bg-[#fafafa] text-center px-6">
-                <div className="w-20 h-20 bg-neutral-100 rounded-full flex items-center justify-center mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor" className="w-10 h-10 text-neutral-300">
+            <div className="flex-1 flex flex-col items-center justify-center bg-[#f0faf0] text-center px-6">
+                <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor" className="w-10 h-10 text-emerald-300">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" />
                     </svg>
                 </div>
@@ -159,21 +151,20 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
     const chatPhoto = getPhotoUrl(activeChat.profilePhoto);
 
     return (
-        <div className="flex-1 flex flex-col bg-[#fafafa] h-full">
-            {/* Chat Header — clickable to open profile */}
+        <div className="flex-1 flex flex-col bg-[#f0faf0] h-full min-h-0">
+            {/* Chat Header — fixed */}
             <button
                 onClick={() => onOpenUserProfile?.(activeChat)}
-                className="px-6 py-4 bg-white border-b border-neutral-200 flex items-center gap-3 hover:bg-neutral-50 transition-colors cursor-pointer text-left w-full"
+                className="px-6 py-4 bg-white border-b border-neutral-200 flex items-center gap-3 hover:bg-neutral-50 transition-colors cursor-pointer text-left w-full flex-shrink-0"
             >
                 <div className="relative">
-                    <div className="w-10 h-10 bg-neutral-900 rounded-full flex items-center justify-center text-white text-sm font-semibold overflow-hidden">
+                    <div className="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center text-white text-sm font-semibold overflow-hidden">
                         {chatPhoto ? (
                             <img src={chatPhoto} alt={activeChat.name} className="w-full h-full object-cover" />
                         ) : (
                             getInitial(activeChat.name)
                         )}
                     </div>
-                    {/* Online indicator */}
                     {isOnline && (
                         <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></span>
                     )}
@@ -182,7 +173,7 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
                     <h3 className="text-sm font-semibold text-neutral-900">{activeChat.name}</h3>
                     <p className="text-xs text-neutral-400">
                         {isOnline ? (
-                            <span className="text-green-600">Online</span>
+                            <span className="text-emerald-600">Online</span>
                         ) : (
                             `@${activeChat.username}`
                         )}
@@ -190,11 +181,11 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
                 </div>
             </button>
 
-            {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto px-6 py-4">
+            {/* Messages Area — scrollable */}
+            <div className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
                 {loading ? (
                     <div className="flex items-center justify-center h-full">
-                        <div className="w-6 h-6 border-2 border-neutral-200 border-t-neutral-900 rounded-full animate-spin" />
+                        <div className="w-6 h-6 border-2 border-emerald-200 border-t-emerald-500 rounded-full animate-spin" />
                     </div>
                 ) : messages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-center">
@@ -215,8 +206,8 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
                 )}
             </div>
 
-            {/* Message Input */}
-            <div className="px-4 py-3 bg-white border-t border-neutral-200">
+            {/* Message Input — fixed at bottom */}
+            <div className="px-4 py-3 bg-white border-t border-neutral-200 flex-shrink-0">
                 <form onSubmit={handleSend} className="flex items-center gap-2">
                     <input
                         type="text"
@@ -225,13 +216,13 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
                         placeholder="Type a message..."
                         className="flex-1 px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm
                             text-neutral-900 placeholder-neutral-300
-                            focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent"
+                            focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                     />
                     <button
                         type="submit"
                         disabled={!newMessage.trim() || sending}
-                        className="w-11 h-11 bg-neutral-900 text-white rounded-xl flex items-center justify-center
-                            hover:bg-neutral-800 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed
+                        className="w-11 h-11 bg-emerald-500 text-white rounded-xl flex items-center justify-center
+                            hover:bg-emerald-600 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed
                             transition-all cursor-pointer flex-shrink-0"
                     >
                         {sending ? (

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import API from "../service/api";
 
-function ProfilePanel({ user, isOwnProfile, onClose, onProfileUpdated, backendUrl }) {
+function ProfilePanel({ user, isOwnProfile, onClose, onProfileUpdated, backendUrl, onLogout }) {
     const [about, setAbout] = useState(user?.about || "");
     const [saving, setSaving] = useState(false);
     const [uploading, setUploading] = useState(false);
@@ -25,7 +25,6 @@ function ProfilePanel({ user, isOwnProfile, onClose, onProfileUpdated, backendUr
 
     const getPhotoUrl = (photoPath) => {
         if (!photoPath) return null;
-        // backendUrl is like http://localhost:5000/api — strip /api
         const base = backendUrl?.replace(/\/api\/?$/, "") || "";
         return `${base}${photoPath}`;
     };
@@ -98,7 +97,7 @@ function ProfilePanel({ user, isOwnProfile, onClose, onProfileUpdated, backendUr
                     {/* Avatar */}
                     <div className="flex flex-col items-center mb-8">
                         <div className="relative group">
-                            <div className="w-24 h-24 rounded-full flex items-center justify-center text-2xl font-bold overflow-hidden bg-neutral-900 text-white">
+                            <div className="w-24 h-24 rounded-full flex items-center justify-center text-2xl font-bold overflow-hidden bg-emerald-500 text-white">
                                 {photoUrl ? (
                                     <img
                                         src={photoUrl}
@@ -165,7 +164,7 @@ function ProfilePanel({ user, isOwnProfile, onClose, onProfileUpdated, backendUr
                                         maxLength={200}
                                         rows={3}
                                         className="w-full text-sm text-neutral-900 bg-white border border-neutral-200 rounded-lg px-3 py-2 resize-none
-                                            focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent
+                                            focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent
                                             placeholder-neutral-300"
                                     />
                                     <div className="flex items-center justify-between mt-2">
@@ -173,8 +172,8 @@ function ProfilePanel({ user, isOwnProfile, onClose, onProfileUpdated, backendUr
                                         <button
                                             onClick={handleSaveAbout}
                                             disabled={saving}
-                                            className="px-4 py-1.5 bg-neutral-900 text-white text-xs font-medium rounded-lg
-                                                hover:bg-neutral-800 active:scale-95 disabled:opacity-50
+                                            className="px-4 py-1.5 bg-emerald-500 text-white text-xs font-medium rounded-lg
+                                                hover:bg-emerald-600 active:scale-95 disabled:opacity-50
                                                 transition-all cursor-pointer"
                                         >
                                             {saving ? "Saving..." : saved ? "Saved ✓" : "Save"}
@@ -194,6 +193,20 @@ function ProfilePanel({ user, isOwnProfile, onClose, onProfileUpdated, backendUr
                                 <p className="text-[10px] uppercase tracking-wider text-neutral-400 font-medium mb-1">Joined</p>
                                 <p className="text-sm text-neutral-900">{joinDate}</p>
                             </div>
+                        )}
+
+                        {/* Logout — own profile only */}
+                        {isOwnProfile && onLogout && (
+                            <button
+                                onClick={onLogout}
+                                className="w-full flex items-center justify-center gap-2 px-4 py-3 mt-4 bg-red-50 text-red-600 rounded-xl text-sm font-medium
+                                    hover:bg-red-100 active:scale-[0.98] transition-all cursor-pointer border border-red-100"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+                                </svg>
+                                Log Out
+                            </button>
                         )}
                     </div>
                 </div>

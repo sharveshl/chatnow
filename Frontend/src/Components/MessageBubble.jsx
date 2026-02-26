@@ -48,8 +48,8 @@ function MessageBubble({ message, isOwn }) {
             <div className={`
                 max-w-[70%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed
                 ${isOwn
-                    ? 'bg-neutral-900 text-white rounded-br-md'
-                    : 'bg-neutral-100 text-neutral-900 rounded-bl-md'
+                    ? 'bg-emerald-500 text-white rounded-br-md'
+                    : 'bg-white text-neutral-900 border border-neutral-100 rounded-bl-md'
                 }
             `}>
                 <p className="break-words">{message.content}</p>

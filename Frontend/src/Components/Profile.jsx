@@ -8,8 +8,8 @@ function Profile({ name, email, onClick, isSelected }) {
                 flex flex-col items-center justify-center p-4 rounded-2xl cursor-pointer
                 border-2 transition-all duration-200 min-w-[120px] max-w-[140px]
                 ${isSelected
-                    ? 'border-neutral-900 bg-neutral-900 text-white shadow-lg scale-[1.02]'
-                    : 'border-neutral-200 bg-white hover:border-neutral-400 hover:shadow-md'
+                    ? 'border-emerald-500 bg-emerald-500 text-white shadow-lg scale-[1.02]'
+                    : 'border-neutral-200 bg-white hover:border-emerald-300 hover:shadow-md'
                 }
             `}
         >
@@ -17,8 +17,8 @@ function Profile({ name, email, onClick, isSelected }) {
             <div className={`
                 w-12 h-12 rounded-full flex items-center justify-center text-lg font-semibold mb-2
                 ${isSelected
-                    ? 'bg-white text-neutral-900'
-                    : 'bg-neutral-100 text-neutral-700'
+                    ? 'bg-white text-emerald-600'
+                    : 'bg-emerald-50 text-emerald-600'
                 }
             `}>
                 {initial}

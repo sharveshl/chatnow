@@ -29,7 +29,7 @@ function Welcome() {
             <div className="w-full max-w-lg text-center animate-slide-up">
                 {/* Logo / Brand */}
                 <div className="mb-8">
-                    <div className="w-14 h-14 bg-neutral-900 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <div className="w-14 h-14 bg-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
                         <span className="text-white text-xl font-bold">C</span>
                     </div>
                     <h1 className="text-3xl font-bold text-neutral-900 tracking-tight">
@@ -71,8 +71,8 @@ function Welcome() {
                     <div className="flex gap-3 justify-center">
                         <Link
                             to="/login"
-                            className="px-6 py-2.5 bg-neutral-900 text-white rounded-xl text-sm font-medium
-                                hover:bg-neutral-800 active:scale-[0.98] transition-all"
+                            className="px-6 py-2.5 bg-emerald-500 text-white rounded-xl text-sm font-medium
+                                hover:bg-emerald-600 active:scale-[0.98] transition-all"
                         >
                             Log In
                         </Link>
