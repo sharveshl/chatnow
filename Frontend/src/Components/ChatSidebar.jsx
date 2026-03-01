@@ -15,6 +15,7 @@ function ChatSidebar({ conversations, activeChat, onSelectChat, currentUser, onN
         const base = backendUrl?.replace(/\/api\/?$/, "") || "";
         return `${base}${photoPath}`;
     };
+    
 
     const currentUserPhoto = getPhotoUrl(currentUser?.profilePhoto);
 
