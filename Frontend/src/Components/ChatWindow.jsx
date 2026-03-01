@@ -377,7 +377,32 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
 
                 {loading ? (
                     <div className="flex items-center justify-center h-full">
-                        <div className="w-6 h-6 border-2 border-emerald-200 border-t-emerald-500 rounded-full animate-spin" />
+                        <div className="relative flex items-center justify-center">
+                            {/* Outer rotating ring */}
+                            <div className="absolute w-28 h-28 rounded-full animate-[spin_2.5s_linear_infinite]"
+                                style={{
+                                    background: 'conic-gradient(from 0deg, transparent 0%, #10b98115 25%, #10b98140 50%, #10b98115 75%, transparent 100%)',
+                                }}
+                            />
+                            {/* Second rotating ring */}
+                            <div className="absolute w-36 h-36 rounded-full animate-[spin_4s_linear_infinite_reverse]"
+                                style={{
+                                    background: 'conic-gradient(from 180deg, transparent 0%, #10b98108 25%, #10b98120 50%, #10b98108 75%, transparent 100%)',
+                                }}
+                            />
+                            {/* Pulsing glow */}
+                            <div className="absolute w-24 h-24 rounded-full bg-emerald-500/5 animate-[pulse_2s_ease-in-out_infinite]" />
+                            {/* Static ring borders */}
+                            <div className="absolute w-26 h-26 rounded-full border border-emerald-500/10" />
+                            {/* Logo */}
+                            <div className="relative z-10 animate-[scaleIn_0.6s_ease-out_forwards]">
+                                <img
+                                    src="/chatnow new logo png.png"
+                                    alt="Loading"
+                                    className="w-16 h-16 object-contain drop-shadow-[0_0_20px_rgba(16,185,129,0.15)]"
+                                />
+                            </div>
+                        </div>
                     </div>
                 ) : messages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-center">

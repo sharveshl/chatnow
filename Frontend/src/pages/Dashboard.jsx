@@ -135,6 +135,14 @@ function Dashboard() {
 
     const handleSelectChat = (user) => {
         setActiveChat(user);
+
+        // Immediately clear unread badge for this conversation
+        setConversations(prev =>
+            prev.map(c =>
+                c.user.username === user.username ? { ...c, unreadCount: 0 } : c
+            )
+        );
+
         const socket = getSocket();
         if (socket && user?.username) {
             socket.emit('message_read', { senderUsername: user.username });
