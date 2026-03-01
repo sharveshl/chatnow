@@ -26,8 +26,14 @@ const messageSchema = new mongoose.Schema({
         timestamps: true
     });
 
-// Index for efficient query of conversations
+// Compound index for conversation queries (sender↔receiver by time)
 messageSchema.index({ sender: 1, receiver: 1, createdAt: -1 });
+
+// Index for pending message delivery (receiver + status)
+messageSchema.index({ receiver: 1, status: 1 });
+
+// Index for status-based bulk updates
+messageSchema.index({ sender: 1, receiver: 1, status: 1 });
 
 const Message = mongoose.model('Message', messageSchema);
 export default Message;

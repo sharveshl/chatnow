@@ -53,7 +53,8 @@ router.get("/search", authMiddleware, async (req, res) => {
       ]
     })
       .select("username name email about profilePhoto")
-      .limit(10);
+      .limit(10)
+      .lean();
 
     return res.status(200).json(users);
   } catch (err) {
@@ -65,7 +66,8 @@ router.get("/search", authMiddleware, async (req, res) => {
 router.get("/profile/:username", authMiddleware, async (req, res) => {
   try {
     const user = await User.findOne({ username: req.params.username })
-      .select("username name email about profilePhoto createdAt");
+      .select("username name email about profilePhoto createdAt")
+      .lean();
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });

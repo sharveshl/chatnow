@@ -1,8 +1,15 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import API from "../service/api";
 import { getSocket } from "../service/socket";
 import MessageBubble from "./MessageBubble";
 import EmojiPicker from "emoji-picker-react";
+import {
+    getCachedMessages,
+    setCachedMessages,
+    appendCachedMessage,
+    markCachedMessagesRead,
+    clearExpiredCache
+} from "../service/messageCache";
 
 function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile, backendUrl, onlineUsers, onCloseChat }) {
     const [messages, setMessages] = useState([]);
@@ -10,27 +17,52 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
     const [loading, setLoading] = useState(false);
     const [sending, setSending] = useState(false);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [hasMore, setHasMore] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
     const messagesEndRef = useRef(null);
+    const messagesContainerRef = useRef(null);
     const inputRef = useRef(null);
     const emojiPickerRef = useRef(null);
+    const initialLoadRef = useRef(true);
 
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const scrollToBottom = (smooth = true) => {
+        messagesEndRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "instant" });
     };
+
+    // Clear expired caches on mount
+    useEffect(() => {
+        clearExpiredCache();
+    }, []);
 
     // Fetch messages when active chat changes
     useEffect(() => {
         if (!activeChat?.username) return;
 
+        initialLoadRef.current = true;
+
+        // 1. Show cached messages instantly
+        const cached = getCachedMessages(activeChat.username);
+        if (cached?.messages?.length) {
+            setMessages(cached.messages);
+            setHasMore(true); // assume there could be more
+        } else {
+            setMessages([]);
+        }
+
+        // 2. Fetch latest from API in background
         const fetchMessages = async () => {
-            setLoading(true);
+            setLoading(!cached?.messages?.length); // only show spinner if no cache
             try {
-                const res = await API.get(`/messages/${activeChat.username}`);
-                setMessages(res.data);
+                const res = await API.get(`/messages/${activeChat.username}?limit=50`);
+                const { messages: freshMessages, hasMore: more } = res.data;
+                setMessages(freshMessages);
+                setHasMore(more);
+                setCachedMessages(activeChat.username, freshMessages);
             } catch {
-                setMessages([]);
+                if (!cached?.messages?.length) setMessages([]);
             } finally {
                 setLoading(false);
+                initialLoadRef.current = false;
             }
         };
 
@@ -42,6 +74,45 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
         }
     }, [activeChat?.username]);
 
+    // Load older messages (cursor pagination)
+    const loadMoreMessages = useCallback(async () => {
+        if (loadingMore || !hasMore || !messages.length || !activeChat?.username) return;
+
+        setLoadingMore(true);
+        const container = messagesContainerRef.current;
+        const prevScrollHeight = container?.scrollHeight || 0;
+
+        try {
+            const oldestId = messages[0]._id;
+            const res = await API.get(`/messages/${activeChat.username}?before=${oldestId}&limit=50`);
+            const { messages: olderMessages, hasMore: more } = res.data;
+
+            setMessages(prev => [...olderMessages, ...prev]);
+            setHasMore(more);
+
+            // Maintain scroll position after prepending
+            requestAnimationFrame(() => {
+                if (container) {
+                    container.scrollTop = container.scrollHeight - prevScrollHeight;
+                }
+            });
+        } catch {
+            // silently fail
+        } finally {
+            setLoadingMore(false);
+        }
+    }, [loadingMore, hasMore, messages, activeChat?.username]);
+
+    // Scroll to top triggers load more
+    const handleScroll = useCallback(() => {
+        const container = messagesContainerRef.current;
+        if (!container || loadingMore || !hasMore) return;
+
+        if (container.scrollTop < 50) {
+            loadMoreMessages();
+        }
+    }, [loadMoreMessages, loadingMore, hasMore]);
+
     // Socket.IO listeners
     useEffect(() => {
         const socket = getSocket();
@@ -51,6 +122,7 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
             const senderUsername = message.sender?.username;
             if (senderUsername === activeChat.username) {
                 setMessages(prev => [...prev, message]);
+                appendCachedMessage(activeChat.username, message);
                 socket.emit('message_read', { senderUsername: activeChat.username });
             }
         };
@@ -70,6 +142,7 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
                     }
                     return msg;
                 }));
+                markCachedMessagesRead(activeChat.username, activeChat.username);
             }
         };
 
@@ -84,8 +157,18 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
         };
     }, [activeChat?.username, currentUser]);
 
+    // Auto-scroll on new messages (only on initial load or when at bottom)
     useEffect(() => {
-        scrollToBottom();
+        if (initialLoadRef.current || !messagesContainerRef.current) {
+            scrollToBottom(false);
+            return;
+        }
+
+        const container = messagesContainerRef.current;
+        const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+        if (isNearBottom) {
+            scrollToBottom();
+        }
     }, [messages]);
 
     // ESC key to close chat
@@ -144,6 +227,7 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
                 console.error('Send error:', response.error);
             } else if (response?.message) {
                 setMessages(prev => [...prev, response.message]);
+                appendCachedMessage(activeChat.username, response.message);
                 onMessageSent?.();
             }
             setSending(false);
@@ -162,7 +246,7 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
 
     const isOnline = activeChat && onlineUsers?.has(activeChat._id);
 
-    // Empty state (desktop only — on mobile this is hidden when no activeChat)
+    // Empty state
     if (!activeChat) {
         return (
             <div className="flex-1 flex flex-col items-center justify-center bg-[#f0faf0] text-center px-6">
@@ -195,7 +279,6 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
                     </svg>
                 </button>
 
-                {/* User info — clickable to open profile */}
                 <button
                     onClick={() => onOpenUserProfile?.(activeChat)}
                     className="flex items-center gap-3 flex-1 min-w-0 hover:bg-neutral-50 rounded-xl px-1 py-1 -mx-1 transition-colors cursor-pointer text-left"
@@ -225,8 +308,27 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
                 </button>
             </div>
 
-            {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto px-3 md:px-6 py-4 min-h-0">
+            {/* Messages Area — scrollable with load-more */}
+            <div
+                ref={messagesContainerRef}
+                onScroll={handleScroll}
+                className="flex-1 overflow-y-auto px-3 md:px-6 py-4 min-h-0"
+            >
+                {/* Load more indicator */}
+                {loadingMore && (
+                    <div className="flex items-center justify-center py-3">
+                        <div className="w-5 h-5 border-2 border-emerald-200 border-t-emerald-500 rounded-full animate-spin" />
+                    </div>
+                )}
+                {hasMore && !loadingMore && messages.length > 0 && (
+                    <button
+                        onClick={loadMoreMessages}
+                        className="w-full text-center text-xs text-emerald-600 py-2 hover:underline cursor-pointer"
+                    >
+                        Load older messages
+                    </button>
+                )}
+
                 {loading ? (
                     <div className="flex items-center justify-center h-full">
                         <div className="w-6 h-6 border-2 border-emerald-200 border-t-emerald-500 rounded-full animate-spin" />
@@ -252,7 +354,6 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
 
             {/* Message Input */}
             <div className="px-3 md:px-4 py-2 md:py-3 bg-white border-t border-neutral-200 flex-shrink-0 relative">
-                {/* Emoji Picker Popup */}
                 {showEmojiPicker && (
                     <div
                         ref={emojiPickerRef}
@@ -271,7 +372,6 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
                 )}
 
                 <form onSubmit={handleSend} className="flex items-center gap-1.5 md:gap-2">
-                    {/* Emoji toggle button */}
                     <button
                         type="button"
                         onClick={() => setShowEmojiPicker(!showEmojiPicker)}
@@ -298,7 +398,6 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
                             focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                     />
 
-                    {/* Send button */}
                     <button
                         type="submit"
                         disabled={!newMessage.trim() || sending}

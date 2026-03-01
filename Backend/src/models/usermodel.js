@@ -34,5 +34,8 @@ const userSchema = new mongoose.Schema({
     }
 );
 
+// Text index for fast user search by username or name
+userSchema.index({ username: 'text', name: 'text' });
+
 const User = mongoose.model('User', userSchema);
 export default User;

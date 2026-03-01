@@ -1,5 +1,6 @@
 import Message from "../models/messagemodel.js";
 import User from "../models/usermodel.js";
+import mongoose from "mongoose";
 
 // Send a message
 export const sendMessage = async (req, res) => {
@@ -11,7 +12,7 @@ export const sendMessage = async (req, res) => {
             return res.status(400).json({ message: "Receiver username and content are required" });
         }
 
-        const receiver = await User.findOne({ username: receiverUsername });
+        const receiver = await User.findOne({ username: receiverUsername }).select('_id username name').lean();
         if (!receiver) {
             return res.status(404).json({ message: "User not found" });
         }
@@ -28,44 +29,77 @@ export const sendMessage = async (req, res) => {
 
         await message.save();
 
-        const populated = await Message.findById(message._id)
-            .populate('sender', 'username name email profilePhoto')
-            .populate('receiver', 'username name email profilePhoto');
+        // Build response manually instead of populate
+        const responseMsg = {
+            _id: message._id,
+            sender: {
+                _id: senderId,
+                username: req.user.username,
+                name: req.user.name
+            },
+            receiver: {
+                _id: receiver._id,
+                username: receiver.username,
+                name: receiver.name
+            },
+            content: message.content,
+            status: message.status,
+            createdAt: message.createdAt,
+            updatedAt: message.updatedAt
+        };
 
-        return res.status(201).json(populated);
+        return res.status(201).json(responseMsg);
     } catch (err) {
         return res.status(500).json({ message: err.message });
     }
 };
 
-// Get messages between current user and another user (by username)
+// Get messages between current user and another user — cursor pagination
 export const getMessages = async (req, res) => {
     try {
         const { username } = req.params;
+        const { before, limit: queryLimit } = req.query;
         const currentUserId = req.user._id;
+        const limit = Math.min(parseInt(queryLimit) || 50, 100);
 
-        const otherUser = await User.findOne({ username });
+        const otherUser = await User.findOne({ username }).select('_id username name').lean();
         if (!otherUser) {
             return res.status(404).json({ message: "User not found" });
         }
 
-        const messages = await Message.find({
+        // Build query filter
+        const filter = {
             $or: [
                 { sender: currentUserId, receiver: otherUser._id },
                 { sender: otherUser._id, receiver: currentUserId }
             ]
-        })
-            .sort({ createdAt: 1 })
-            .populate('sender', 'username name email profilePhoto')
-            .populate('receiver', 'username name email profilePhoto');
+        };
 
-        // Mark received messages as read
-        await Message.updateMany(
+        // Cursor pagination: fetch messages older than `before`
+        if (before && mongoose.Types.ObjectId.isValid(before)) {
+            filter._id = { $lt: new mongoose.Types.ObjectId(before) };
+        }
+
+        // Fetch limit+1 to check if there are more
+        const messages = await Message.find(filter)
+            .sort({ createdAt: -1 })
+            .limit(limit + 1)
+            .populate('sender', 'username name')
+            .lean();
+
+        const hasMore = messages.length > limit;
+        if (hasMore) messages.pop();
+
+        // Reverse to chronological order for display
+        messages.reverse();
+
+        // Mark received messages as read (fire & forget)
+        Message.updateMany(
             { sender: otherUser._id, receiver: currentUserId, status: { $ne: 'read' } },
             { $set: { status: 'read' } }
-        );
+        ).exec();
 
-        return res.status(200).json(messages);
+        return res.status(200).json({ messages, hasMore });
     } catch (err) {
         return res.status(500).json({ message: err.message });
     }
@@ -120,19 +154,17 @@ export const getConversations = async (req, res) => {
                     from: "users",
                     localField: "_id",
                     foreignField: "_id",
-                    as: "user"
+                    as: "user",
+                    pipeline: [
+                        { $project: { _id: 1, username: 1, name: 1, email: 1, profilePhoto: 1 } }
+                    ]
                 }
             },
             { $unwind: "$user" },
             {
                 $project: {
                     _id: 0,
-                    user: {
-                        _id: "$user._id",
-                        username: "$user.username",
-                        name: "$user.name",
-                        email: "$user.email"
-                    },
+                    user: 1,
                     lastMessage: 1,
                     lastMessageTime: 1,
                     lastMessageSender: 1,

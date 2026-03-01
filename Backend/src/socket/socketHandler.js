@@ -5,6 +5,19 @@ import Message from '../models/messagemodel.js';
 // Map of userId (string) -> socketId
 const onlineUsers = new Map();
 
+// Cache: username -> userId (avoids repeated DB lookups for typing events)
+const usernameToId = new Map();
+
+async function resolveUserId(username) {
+    if (usernameToId.has(username)) return usernameToId.get(username);
+    const user = await User.findOne({ username }).select('_id').lean();
+    if (user) {
+        usernameToId.set(username, user._id.toString());
+        return user._id.toString();
+    }
+    return null;
+}
+
 export default function setupSocket(io) {
     // Authenticate socket connections via JWT
     io.use(async (socket, next) => {
@@ -15,7 +28,7 @@ export default function setupSocket(io) {
             }
 
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            const user = await User.findById(decoded.id).select('-password');
+            const user = await User.findById(decoded.id).select('-password').lean();
             if (!user) {
                 return next(new Error('User not found'));
             }
@@ -31,8 +44,9 @@ export default function setupSocket(io) {
         const userId = socket.user._id.toString();
         console.log(`✓ User connected: ${socket.user.username} (${userId})`);
 
-        // Track this user as online
+        // Track this user as online & cache username->id
         onlineUsers.set(userId, socket.id);
+        usernameToId.set(socket.user.username, userId);
 
         // Broadcast online status to all other users
         socket.broadcast.emit('user_online', { userId, username: socket.user.username });
@@ -49,12 +63,11 @@ export default function setupSocket(io) {
             try {
                 const { receiverUsername, content } = data;
 
-                // Validate
                 if (!receiverUsername || !content?.trim()) {
                     return callback?.({ error: 'Receiver username and content are required' });
                 }
 
-                const receiver = await User.findOne({ username: receiverUsername });
+                const receiver = await User.findOne({ username: receiverUsername }).select('_id username name').lean();
                 if (!receiver) {
                     return callback?.({ error: 'User not found' });
                 }
@@ -73,30 +86,41 @@ export default function setupSocket(io) {
 
                 await message.save();
 
-                // Populate sender & receiver for client
-                const populated = await Message.findById(message._id)
-                    .populate('sender', 'username name email profilePhoto')
-                    .populate('receiver', 'username name email profilePhoto');
+                // Build populated-like response manually (no extra DB query)
+                const populated = {
+                    _id: message._id,
+                    sender: {
+                        _id: socket.user._id,
+                        username: socket.user.username,
+                        name: socket.user.name
+                    },
+                    receiver: {
+                        _id: receiver._id,
+                        username: receiver.username,
+                        name: receiver.name
+                    },
+                    content: message.content,
+                    status: message.status,
+                    createdAt: message.createdAt,
+                    updatedAt: message.updatedAt
+                };
 
-                // ACK to sender (step 5: ✓ Sent)
+                // ACK to sender
                 callback?.({ message: populated });
 
-                // Check if receiver is online (step 7)
+                // Check if receiver is online
                 const receiverSocketId = onlineUsers.get(receiver._id.toString());
                 if (receiverSocketId) {
-                    // Push to receiver via WebSocket
                     io.to(receiverSocketId).emit('receive_message', populated);
 
-                    // Mark as delivered
-                    await Message.findByIdAndUpdate(message._id, { status: 'delivered' });
+                    // Mark as delivered (fire & forget)
+                    Message.findByIdAndUpdate(message._id, { status: 'delivered' }).exec();
 
-                    // Notify sender of delivery (✓✓ Delivered)
                     socket.emit('message_delivered', {
                         messageId: message._id.toString(),
                         receiverUsername
                     });
                 }
-                // If receiver is offline, message stays as 'sent' — delivered when they come online
             } catch (err) {
                 console.error('send_message error:', err);
                 callback?.({ error: 'Failed to send message' });
@@ -109,13 +133,13 @@ export default function setupSocket(io) {
                 const { senderUsername } = data;
                 if (!senderUsername) return;
 
-                const sender = await User.findOne({ username: senderUsername });
-                if (!sender) return;
+                // Use cached lookup
+                const senderId = await resolveUserId(senderUsername);
+                if (!senderId) return;
 
-                // Update all unread messages from this sender to this user
                 const result = await Message.updateMany(
                     {
-                        sender: sender._id,
+                        sender: senderId,
                         receiver: socket.user._id,
                         status: { $ne: 'read' }
                     },
@@ -123,8 +147,7 @@ export default function setupSocket(io) {
                 );
 
                 if (result.modifiedCount > 0) {
-                    // Notify the sender that their messages were read
-                    const senderSocketId = onlineUsers.get(sender._id.toString());
+                    const senderSocketId = onlineUsers.get(senderId);
                     if (senderSocketId) {
                         io.to(senderSocketId).emit('messages_read', {
                             readerUsername: socket.user.username,
@@ -137,29 +160,24 @@ export default function setupSocket(io) {
             }
         });
 
-        // ─── TYPING INDICATORS ──────────────────────────────────────
-        socket.on('typing_start', (data) => {
-            const { receiverUsername } = data;
-            // Find the receiver and forward the typing event
-            for (const [uid, sid] of onlineUsers.entries()) {
-                if (sid !== socket.id) {
-                    io.to(sid).emit('user_typing', {
-                        username: socket.user.username,
-                        receiverUsername
-                    });
-                }
+        // ─── TYPING INDICATORS — targeted to specific receiver ───
+        socket.on('typing_start', async ({ receiverUsername }) => {
+            if (!receiverUsername) return;
+            const receiverId = await resolveUserId(receiverUsername);
+            if (!receiverId) return;
+            const sid = onlineUsers.get(receiverId);
+            if (sid) {
+                io.to(sid).emit('user_typing', { username: socket.user.username });
             }
         });
 
-        socket.on('typing_stop', (data) => {
-            const { receiverUsername } = data;
-            for (const [uid, sid] of onlineUsers.entries()) {
-                if (sid !== socket.id) {
-                    io.to(sid).emit('user_stopped_typing', {
-                        username: socket.user.username,
-                        receiverUsername
-                    });
-                }
+        socket.on('typing_stop', async ({ receiverUsername }) => {
+            if (!receiverUsername) return;
+            const receiverId = await resolveUserId(receiverUsername);
+            if (!receiverId) return;
+            const sid = onlineUsers.get(receiverId);
+            if (sid) {
+                io.to(sid).emit('user_stopped_typing', { username: socket.user.username });
             }
         });
 
@@ -178,11 +196,12 @@ async function deliverPendingMessages(socket, userId, io) {
         const pendingMessages = await Message.find({
             receiver: userId,
             status: 'sent'
-        }).populate('sender', 'username name email profilePhoto');
+        })
+            .populate('sender', 'username name')
+            .lean();
 
         if (pendingMessages.length === 0) return;
 
-        // Mark all as delivered
         const messageIds = pendingMessages.map(m => m._id);
         await Message.updateMany(
             { _id: { $in: messageIds } },
