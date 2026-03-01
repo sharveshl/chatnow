@@ -52,7 +52,7 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
         const fetchMessages = async () => {
             setLoading(!cached?.messages?.length);
             try {
-                const res = await API.get(`/messages/${activeChat.username}?limit=50`);
+                const res = await API.get(`/messages/${activeChat.username}?limit=100`);
                 const { messages: freshMessages, hasMore: more } = res.data;
                 setMessages(freshMessages);
                 setHasMore(more);

@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'chatnow_msgs_';
-const MAX_MESSAGES = 50;
+const MAX_MESSAGES = 100;
 const TTL_MS = 24 * 60 * 60 * 1000; // 1 day
 
 function getKey(chatUsername) {
