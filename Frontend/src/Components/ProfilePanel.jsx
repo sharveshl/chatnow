@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect } from "react";
 import API from "../service/api";
 
-function ProfilePanel({ user, isOwnProfile, onClose, onProfileUpdated, backendUrl, onLogout }) {
+function ProfilePanel({ user, isOwnProfile, onClose, onProfileUpdated, backendUrl, onLogout, onDeleteChat }) {
     const [about, setAbout] = useState(user?.about || "");
     const [saving, setSaving] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [profileData, setProfileData] = useState(user);
     const [saved, setSaved] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState(false);
     const fileInputRef = useRef(null);
 
     // Fetch latest profile data
@@ -66,6 +68,32 @@ function ProfilePanel({ user, isOwnProfile, onClose, onProfileUpdated, backendUr
         }
     };
 
+    const handleDeleteChat = async () => {
+        if (!confirmDelete) {
+            setConfirmDelete(true);
+            return;
+        }
+
+        setDeleting(true);
+        try {
+            await API.delete(`/messages/conversation/${profileData?.username}`);
+
+            // Clear local storage cache
+            try {
+                localStorage.removeItem(`chatnow_msgs_${profileData?.username}`);
+            } catch {
+                // silently fail
+            }
+
+            onDeleteChat?.(profileData?.username);
+        } catch {
+            // silently fail
+        } finally {
+            setDeleting(false);
+            setConfirmDelete(false);
+        }
+    };
+
     const photoUrl = getPhotoUrl(profileData?.profilePhoto);
     const joinDate = profileData?.createdAt
         ? new Date(profileData.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" })
@@ -109,7 +137,6 @@ function ProfilePanel({ user, isOwnProfile, onClose, onProfileUpdated, backendUr
                                 )}
                             </div>
 
-                            {/* Camera overlay — own profile only */}
                             {isOwnProfile && (
                                 <button
                                     onClick={() => fileInputRef.current?.click()}
@@ -139,7 +166,6 @@ function ProfilePanel({ user, isOwnProfile, onClose, onProfileUpdated, backendUr
                             />
                         </div>
 
-                        {/* Name & Username */}
                         <h3 className="text-lg font-semibold text-neutral-900 mt-4">{profileData?.name}</h3>
                         <p className="text-sm text-neutral-400">@{profileData?.username}</p>
                     </div>
@@ -193,6 +219,26 @@ function ProfilePanel({ user, isOwnProfile, onClose, onProfileUpdated, backendUr
                                 <p className="text-[10px] uppercase tracking-wider text-neutral-400 font-medium mb-1">Joined</p>
                                 <p className="text-sm text-neutral-900">{joinDate}</p>
                             </div>
+                        )}
+
+                        {/* Delete Chat — other user's profile only */}
+                        {!isOwnProfile && onDeleteChat && (
+                            <button
+                                onClick={handleDeleteChat}
+                                disabled={deleting}
+                                className={`w-full flex items-center justify-center gap-2 px-4 py-3 mt-2 rounded-xl text-sm font-medium
+                                    transition-all cursor-pointer border
+                                    ${confirmDelete
+                                        ? 'bg-red-600 text-white border-red-600 hover:bg-red-700'
+                                        : 'bg-red-50 text-red-600 border-red-100 hover:bg-red-100'
+                                    }
+                                    active:scale-[0.98] disabled:opacity-50`}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                </svg>
+                                {deleting ? "Deleting..." : confirmDelete ? "Confirm Delete Chat" : "Delete Entire Chat"}
+                            </button>
                         )}
 
                         {/* Logout — own profile only */}

@@ -178,3 +178,30 @@ export const getConversations = async (req, res) => {
         return res.status(500).json({ message: err.message });
     }
 };
+
+// Delete entire conversation between current user and another user
+export const deleteConversation = async (req, res) => {
+    try {
+        const { username } = req.params;
+        const currentUserId = req.user._id;
+
+        const otherUser = await User.findOne({ username }).select('_id').lean();
+        if (!otherUser) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        const result = await Message.deleteMany({
+            $or: [
+                { sender: currentUserId, receiver: otherUser._id },
+                { sender: otherUser._id, receiver: currentUserId }
+            ]
+        });
+
+        return res.status(200).json({
+            message: "Conversation deleted",
+            deletedCount: result.deletedCount
+        });
+    } catch (err) {
+        return res.status(500).json({ message: err.message });
+    }
+};

@@ -14,8 +14,10 @@ function Dashboard() {
     const [profileUser, setProfileUser] = useState(null);
     const [isOwnProfile, setIsOwnProfile] = useState(false);
     const [onlineUsers, setOnlineUsers] = useState(new Set());
+    const [typingUsers, setTypingUsers] = useState(new Set());
     const navigate = useNavigate();
     const activeChatRef = useRef(null);
+    const typingTimeoutRef = useRef({});
 
     const backendUrl = import.meta.env.VITE_backendurl;
 
@@ -85,6 +87,35 @@ function Dashboard() {
         socket.on('message_delivered', () => { });
         socket.on('messages_read', () => { });
 
+        // Typing indicator events
+        socket.on('user_typing', ({ username }) => {
+            setTypingUsers(prev => new Set([...prev, username]));
+
+            // Auto-clear after 3s if no typing_stop received
+            if (typingTimeoutRef.current[username]) {
+                clearTimeout(typingTimeoutRef.current[username]);
+            }
+            typingTimeoutRef.current[username] = setTimeout(() => {
+                setTypingUsers(prev => {
+                    const next = new Set(prev);
+                    next.delete(username);
+                    return next;
+                });
+            }, 3000);
+        });
+
+        socket.on('user_stopped_typing', ({ username }) => {
+            setTypingUsers(prev => {
+                const next = new Set(prev);
+                next.delete(username);
+                return next;
+            });
+            if (typingTimeoutRef.current[username]) {
+                clearTimeout(typingTimeoutRef.current[username]);
+                delete typingTimeoutRef.current[username];
+            }
+        });
+
         return () => {
             socket.off('online_users');
             socket.off('user_online');
@@ -92,7 +123,13 @@ function Dashboard() {
             socket.off('receive_message');
             socket.off('message_delivered');
             socket.off('messages_read');
+            socket.off('user_typing');
+            socket.off('user_stopped_typing');
             disconnectSocket();
+
+            // Clear all typing timeouts
+            Object.values(typingTimeoutRef.current).forEach(clearTimeout);
+            typingTimeoutRef.current = {};
         };
     }, [currentUser, fetchConversations]);
 
@@ -151,6 +188,18 @@ function Dashboard() {
         }
     };
 
+    const handleDeleteChat = (username) => {
+        // Remove from conversations list
+        setConversations(prev => prev.filter(c => c.user.username !== username));
+        // Close the active chat if it's the deleted one
+        if (activeChat?.username === username) {
+            setActiveChat(null);
+        }
+        // Close profile panel
+        setProfileUser(null);
+        setIsOwnProfile(false);
+    };
+
     if (loading && !currentUser) {
         return (
             <div className="min-h-screen bg-[#f0faf0] flex items-center justify-center">
@@ -175,9 +224,6 @@ function Dashboard() {
 
             {/* Main content */}
             <div className="flex-1 flex overflow-hidden relative min-h-0">
-                {/* Left column — sidebar
-                    Mobile: full-width, hidden when a chat is active
-                    Desktop: fixed 360px width, always visible */}
                 <div className={`
                     flex-shrink-0 flex flex-col min-h-0
                     w-full md:w-[360px]
@@ -195,9 +241,6 @@ function Dashboard() {
                     />
                 </div>
 
-                {/* Right column — chat window
-                    Mobile: full-width, hidden when no chat is active
-                    Desktop: fills remaining space, always visible */}
                 <div className={`
                     flex-1 flex flex-col min-h-0 min-w-0
                     ${activeChat ? 'flex' : 'hidden md:flex'}
@@ -210,6 +253,7 @@ function Dashboard() {
                         backendUrl={backendUrl}
                         onlineUsers={onlineUsers}
                         onCloseChat={handleCloseChat}
+                        typingUsers={typingUsers}
                     />
                 </div>
 
@@ -222,6 +266,7 @@ function Dashboard() {
                         onProfileUpdated={handleProfileUpdated}
                         backendUrl={backendUrl}
                         onLogout={isOwnProfile ? handleLogout : null}
+                        onDeleteChat={!isOwnProfile ? handleDeleteChat : null}
                     />
                 )}
             </div>

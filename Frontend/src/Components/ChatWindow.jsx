@@ -11,7 +11,7 @@ import {
     clearExpiredCache
 } from "../service/messageCache";
 
-function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile, backendUrl, onlineUsers, onCloseChat }) {
+function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile, backendUrl, onlineUsers, onCloseChat, typingUsers }) {
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState("");
     const [loading, setLoading] = useState(false);
@@ -24,12 +24,13 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
     const inputRef = useRef(null);
     const emojiPickerRef = useRef(null);
     const initialLoadRef = useRef(true);
+    const typingTimerRef = useRef(null);
+    const isTypingRef = useRef(false);
 
     const scrollToBottom = (smooth = true) => {
         messagesEndRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "instant" });
     };
 
-    // Clear expired caches on mount
     useEffect(() => {
         clearExpiredCache();
     }, []);
@@ -40,18 +41,16 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
 
         initialLoadRef.current = true;
 
-        // 1. Show cached messages instantly
         const cached = getCachedMessages(activeChat.username);
         if (cached?.messages?.length) {
             setMessages(cached.messages);
-            setHasMore(true); // assume there could be more
+            setHasMore(true);
         } else {
             setMessages([]);
         }
 
-        // 2. Fetch latest from API in background
         const fetchMessages = async () => {
-            setLoading(!cached?.messages?.length); // only show spinner if no cache
+            setLoading(!cached?.messages?.length);
             try {
                 const res = await API.get(`/messages/${activeChat.username}?limit=50`);
                 const { messages: freshMessages, hasMore: more } = res.data;
@@ -74,7 +73,7 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
         }
     }, [activeChat?.username]);
 
-    // Load older messages (cursor pagination)
+    // Load older messages
     const loadMoreMessages = useCallback(async () => {
         if (loadingMore || !hasMore || !messages.length || !activeChat?.username) return;
 
@@ -90,7 +89,6 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
             setMessages(prev => [...olderMessages, ...prev]);
             setHasMore(more);
 
-            // Maintain scroll position after prepending
             requestAnimationFrame(() => {
                 if (container) {
                     container.scrollTop = container.scrollHeight - prevScrollHeight;
@@ -103,7 +101,6 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
         }
     }, [loadingMore, hasMore, messages, activeChat?.username]);
 
-    // Scroll to top triggers load more
     const handleScroll = useCallback(() => {
         const container = messagesContainerRef.current;
         if (!container || loadingMore || !hasMore) return;
@@ -157,7 +154,7 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
         };
     }, [activeChat?.username, currentUser]);
 
-    // Auto-scroll on new messages (only on initial load or when at bottom)
+    // Auto-scroll
     useEffect(() => {
         if (initialLoadRef.current || !messagesContainerRef.current) {
             scrollToBottom(false);
@@ -171,7 +168,7 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
         }
     }, [messages]);
 
-    // ESC key to close chat
+    // ESC key
     useEffect(() => {
         if (!activeChat) return;
         const handleKeyDown = (e) => {
@@ -187,7 +184,7 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [activeChat, onCloseChat, showEmojiPicker]);
 
-    // Close emoji picker when clicking outside
+    // Close emoji on outside click
     useEffect(() => {
         if (!showEmojiPicker) return;
         const handleClickOutside = (e) => {
@@ -199,14 +196,52 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [showEmojiPicker]);
 
-    // Close emoji picker when chat changes
     useEffect(() => {
         setShowEmojiPicker(false);
+    }, [activeChat?.username]);
+
+    // Stop typing when chat changes or component unmounts
+    useEffect(() => {
+        return () => {
+            if (isTypingRef.current && activeChat?.username) {
+                const socket = getSocket();
+                socket?.emit('typing_stop', { receiverUsername: activeChat.username });
+                isTypingRef.current = false;
+            }
+            if (typingTimerRef.current) {
+                clearTimeout(typingTimerRef.current);
+                typingTimerRef.current = null;
+            }
+        };
     }, [activeChat?.username]);
 
     const handleEmojiClick = (emojiData) => {
         setNewMessage(prev => prev + emojiData.emoji);
         inputRef.current?.focus();
+    };
+
+    // Typing indicator logic
+    const handleInputChange = (e) => {
+        setNewMessage(e.target.value);
+
+        if (!activeChat?.username) return;
+        const socket = getSocket();
+        if (!socket) return;
+
+        // Emit typing_start if not already typing
+        if (!isTypingRef.current) {
+            isTypingRef.current = true;
+            socket.emit('typing_start', { receiverUsername: activeChat.username });
+        }
+
+        // Reset the stop timer (stop typing after 2s of inactivity)
+        if (typingTimerRef.current) {
+            clearTimeout(typingTimerRef.current);
+        }
+        typingTimerRef.current = setTimeout(() => {
+            isTypingRef.current = false;
+            socket.emit('typing_stop', { receiverUsername: activeChat.username });
+        }, 2000);
     };
 
     const handleSend = async (e) => {
@@ -215,6 +250,16 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
 
         const socket = getSocket();
         if (!socket) return;
+
+        // Stop typing immediately on send
+        if (isTypingRef.current) {
+            isTypingRef.current = false;
+            socket.emit('typing_stop', { receiverUsername: activeChat.username });
+            if (typingTimerRef.current) {
+                clearTimeout(typingTimerRef.current);
+                typingTimerRef.current = null;
+            }
+        }
 
         setSending(true);
         setShowEmojiPicker(false);
@@ -245,6 +290,7 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
     };
 
     const isOnline = activeChat && onlineUsers?.has(activeChat._id);
+    const isTyping = activeChat && typingUsers?.has(activeChat.username);
 
     // Empty state
     if (!activeChat) {
@@ -269,7 +315,6 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
         <div className="flex-1 flex flex-col bg-[#f0faf0] h-full min-h-0">
             {/* Chat Header */}
             <div className="px-3 md:px-6 py-3 md:py-4 bg-white border-b border-neutral-200 flex items-center gap-2 md:gap-3 flex-shrink-0">
-                {/* Back button — mobile only */}
                 <button
                     onClick={onCloseChat}
                     className="md:hidden w-8 h-8 flex items-center justify-center rounded-full hover:bg-neutral-100 transition-colors cursor-pointer flex-shrink-0"
@@ -298,7 +343,9 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
                     <div className="min-w-0">
                         <h3 className="text-sm font-semibold text-neutral-900 truncate">{activeChat.name}</h3>
                         <p className="text-xs text-neutral-400">
-                            {isOnline ? (
+                            {isTyping ? (
+                                <span className="text-emerald-600 animate-pulse">typing...</span>
+                            ) : isOnline ? (
                                 <span className="text-emerald-600">Online</span>
                             ) : (
                                 `@${activeChat.username}`
@@ -308,13 +355,12 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
                 </button>
             </div>
 
-            {/* Messages Area — scrollable with load-more */}
+            {/* Messages Area */}
             <div
                 ref={messagesContainerRef}
                 onScroll={handleScroll}
                 className="flex-1 overflow-y-auto px-3 md:px-6 py-4 min-h-0"
             >
-                {/* Load more indicator */}
                 {loadingMore && (
                     <div className="flex items-center justify-center py-3">
                         <div className="w-5 h-5 border-2 border-emerald-200 border-t-emerald-500 rounded-full animate-spin" />
@@ -390,7 +436,7 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
                         ref={inputRef}
                         type="text"
                         value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
+                        onChange={handleInputChange}
                         onFocus={() => setShowEmojiPicker(false)}
                         placeholder="Type a message..."
                         className="flex-1 px-3 md:px-4 py-2.5 md:py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm
