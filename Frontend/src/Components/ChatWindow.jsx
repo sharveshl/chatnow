@@ -2,13 +2,17 @@ import { useState, useRef, useEffect } from "react";
 import API from "../service/api";
 import { getSocket } from "../service/socket";
 import MessageBubble from "./MessageBubble";
+import EmojiPicker from "emoji-picker-react";
 
 function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile, backendUrl, onlineUsers, onCloseChat }) {
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState("");
     const [loading, setLoading] = useState(false);
     const [sending, setSending] = useState(false);
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const messagesEndRef = useRef(null);
+    const inputRef = useRef(null);
+    const emojiPickerRef = useRef(null);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -89,12 +93,38 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
         if (!activeChat) return;
         const handleKeyDown = (e) => {
             if (e.key === 'Escape') {
-                onCloseChat?.();
+                if (showEmojiPicker) {
+                    setShowEmojiPicker(false);
+                } else {
+                    onCloseChat?.();
+                }
             }
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [activeChat, onCloseChat]);
+    }, [activeChat, onCloseChat, showEmojiPicker]);
+
+    // Close emoji picker when clicking outside
+    useEffect(() => {
+        if (!showEmojiPicker) return;
+        const handleClickOutside = (e) => {
+            if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target)) {
+                setShowEmojiPicker(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [showEmojiPicker]);
+
+    // Close emoji picker when chat changes
+    useEffect(() => {
+        setShowEmojiPicker(false);
+    }, [activeChat?.username]);
+
+    const handleEmojiClick = (emojiData) => {
+        setNewMessage(prev => prev + emojiData.emoji);
+        inputRef.current?.focus();
+    };
 
     const handleSend = async (e) => {
         e.preventDefault();
@@ -104,6 +134,7 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
         if (!socket) return;
 
         setSending(true);
+        setShowEmojiPicker(false);
 
         socket.emit('send_message', {
             receiverUsername: activeChat.username,
@@ -131,7 +162,7 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
 
     const isOnline = activeChat && onlineUsers?.has(activeChat._id);
 
-    // Empty state
+    // Empty state (desktop only — on mobile this is hidden when no activeChat)
     if (!activeChat) {
         return (
             <div className="flex-1 flex flex-col items-center justify-center bg-[#f0faf0] text-center px-6">
@@ -152,37 +183,50 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
 
     return (
         <div className="flex-1 flex flex-col bg-[#f0faf0] h-full min-h-0">
-            {/* Chat Header — fixed */}
-            <button
-                onClick={() => onOpenUserProfile?.(activeChat)}
-                className="px-6 py-4 bg-white border-b border-neutral-200 flex items-center gap-3 hover:bg-neutral-50 transition-colors cursor-pointer text-left w-full flex-shrink-0"
-            >
-                <div className="relative">
-                    <div className="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center text-white text-sm font-semibold overflow-hidden">
-                        {chatPhoto ? (
-                            <img src={chatPhoto} alt={activeChat.name} className="w-full h-full object-cover" />
-                        ) : (
-                            getInitial(activeChat.name)
+            {/* Chat Header */}
+            <div className="px-3 md:px-6 py-3 md:py-4 bg-white border-b border-neutral-200 flex items-center gap-2 md:gap-3 flex-shrink-0">
+                {/* Back button — mobile only */}
+                <button
+                    onClick={onCloseChat}
+                    className="md:hidden w-8 h-8 flex items-center justify-center rounded-full hover:bg-neutral-100 transition-colors cursor-pointer flex-shrink-0"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 text-neutral-600">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+                    </svg>
+                </button>
+
+                {/* User info — clickable to open profile */}
+                <button
+                    onClick={() => onOpenUserProfile?.(activeChat)}
+                    className="flex items-center gap-3 flex-1 min-w-0 hover:bg-neutral-50 rounded-xl px-1 py-1 -mx-1 transition-colors cursor-pointer text-left"
+                >
+                    <div className="relative flex-shrink-0">
+                        <div className="w-9 h-9 md:w-10 md:h-10 bg-emerald-500 rounded-full flex items-center justify-center text-white text-sm font-semibold overflow-hidden">
+                            {chatPhoto ? (
+                                <img src={chatPhoto} alt={activeChat.name} className="w-full h-full object-cover" />
+                            ) : (
+                                getInitial(activeChat.name)
+                            )}
+                        </div>
+                        {isOnline && (
+                            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 md:w-3 md:h-3 bg-green-500 border-2 border-white rounded-full"></span>
                         )}
                     </div>
-                    {isOnline && (
-                        <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></span>
-                    )}
-                </div>
-                <div>
-                    <h3 className="text-sm font-semibold text-neutral-900">{activeChat.name}</h3>
-                    <p className="text-xs text-neutral-400">
-                        {isOnline ? (
-                            <span className="text-emerald-600">Online</span>
-                        ) : (
-                            `@${activeChat.username}`
-                        )}
-                    </p>
-                </div>
-            </button>
+                    <div className="min-w-0">
+                        <h3 className="text-sm font-semibold text-neutral-900 truncate">{activeChat.name}</h3>
+                        <p className="text-xs text-neutral-400">
+                            {isOnline ? (
+                                <span className="text-emerald-600">Online</span>
+                            ) : (
+                                `@${activeChat.username}`
+                            )}
+                        </p>
+                    </div>
+                </button>
+            </div>
 
-            {/* Messages Area — scrollable */}
-            <div className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
+            {/* Messages Area */}
+            <div className="flex-1 overflow-y-auto px-3 md:px-6 py-4 min-h-0">
                 {loading ? (
                     <div className="flex items-center justify-center h-full">
                         <div className="w-6 h-6 border-2 border-emerald-200 border-t-emerald-500 rounded-full animate-spin" />
@@ -206,22 +250,59 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
                 )}
             </div>
 
-            {/* Message Input — fixed at bottom */}
-            <div className="px-4 py-3 bg-white border-t border-neutral-200 flex-shrink-0">
-                <form onSubmit={handleSend} className="flex items-center gap-2">
+            {/* Message Input */}
+            <div className="px-3 md:px-4 py-2 md:py-3 bg-white border-t border-neutral-200 flex-shrink-0 relative">
+                {/* Emoji Picker Popup */}
+                {showEmojiPicker && (
+                    <div
+                        ref={emojiPickerRef}
+                        className="absolute bottom-full left-0 right-0 md:left-auto md:right-auto mb-2 mx-2 md:mx-0 z-50"
+                    >
+                        <EmojiPicker
+                            onEmojiClick={handleEmojiClick}
+                            width="100%"
+                            height={350}
+                            searchPlaceholder="Search emojis..."
+                            previewConfig={{ showPreview: false }}
+                            skinTonesDisabled
+                            lazyLoadEmojis
+                        />
+                    </div>
+                )}
+
+                <form onSubmit={handleSend} className="flex items-center gap-1.5 md:gap-2">
+                    {/* Emoji toggle button */}
+                    <button
+                        type="button"
+                        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                        className={`w-10 h-10 md:w-11 md:h-11 flex items-center justify-center rounded-xl transition-all cursor-pointer flex-shrink-0
+                            ${showEmojiPicker
+                                ? 'bg-emerald-100 text-emerald-600'
+                                : 'text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100'
+                            }`}
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 md:w-6 md:h-6">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.182 15.182a4.5 4.5 0 0 1-6.364 0M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75Zm-.375 0h.008v.015h-.008V9.75Zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75Zm-.375 0h.008v.015h-.008V9.75Z" />
+                        </svg>
+                    </button>
+
                     <input
+                        ref={inputRef}
                         type="text"
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
+                        onFocus={() => setShowEmojiPicker(false)}
                         placeholder="Type a message..."
-                        className="flex-1 px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm
+                        className="flex-1 px-3 md:px-4 py-2.5 md:py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm
                             text-neutral-900 placeholder-neutral-300
                             focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                     />
+
+                    {/* Send button */}
                     <button
                         type="submit"
                         disabled={!newMessage.trim() || sending}
-                        className="w-11 h-11 bg-emerald-500 text-white rounded-xl flex items-center justify-center
+                        className="w-10 h-10 md:w-11 md:h-11 bg-emerald-500 text-white rounded-xl flex items-center justify-center
                             hover:bg-emerald-600 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed
                             transition-all cursor-pointer flex-shrink-0"
                     >

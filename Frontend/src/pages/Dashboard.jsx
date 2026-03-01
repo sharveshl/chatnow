@@ -37,7 +37,7 @@ function Dashboard() {
         fetchUser();
     }, [navigate]);
 
-    // Fetch conversations (initial load)
+    // Fetch conversations
     const fetchConversations = useCallback(async () => {
         try {
             const res = await API.get("/messages/conversations/list");
@@ -53,7 +53,7 @@ function Dashboard() {
         fetchConversations();
     }, [fetchConversations]);
 
-    // ─── Socket.IO Setup
+    // Socket.IO Setup
     useEffect(() => {
         if (!currentUser) return;
 
@@ -130,7 +130,6 @@ function Dashboard() {
         navigate("/login");
     };
 
-    // Profile handlers
     const handleOpenOwnProfile = () => {
         setProfileUser(currentUser);
         setIsOwnProfile(true);
@@ -163,21 +162,27 @@ function Dashboard() {
     return (
         <div className="h-screen flex flex-col bg-[#f0faf0] overflow-hidden">
             {/* Top bar */}
-            <div className="h-14 bg-emerald-500 flex items-center justify-between px-5 flex-shrink-0">
+            <div className="h-14 bg-emerald-500 flex items-center justify-between px-4 md:px-5 flex-shrink-0">
                 <div className="flex items-center gap-2.5">
                     <img
                         src="/chatnow new logo svg.svg"
                         alt="ChatNow"
-                        className="w-9 h-9 rounded-lg object-contain bg-white p-0.5"
+                        className="w-8 h-8 md:w-9 md:h-9 rounded-lg object-contain bg-white p-0.5"
                     />
                     <span className="text-white text-sm font-bold tracking-tight">ChatNow</span>
                 </div>
             </div>
 
-            {/* Main content — fixed two column layout, no page scroll */}
+            {/* Main content */}
             <div className="flex-1 flex overflow-hidden relative min-h-0">
-                {/* Left column — sidebar */}
-                <div className="w-[360px] flex-shrink-0 flex flex-col min-h-0">
+                {/* Left column — sidebar
+                    Mobile: full-width, hidden when a chat is active
+                    Desktop: fixed 360px width, always visible */}
+                <div className={`
+                    flex-shrink-0 flex flex-col min-h-0
+                    w-full md:w-[360px]
+                    ${activeChat ? 'hidden md:flex' : 'flex'}
+                `}>
                     <ChatSidebar
                         conversations={conversations}
                         activeChat={activeChat}
@@ -190,16 +195,23 @@ function Dashboard() {
                     />
                 </div>
 
-                {/* Right column — chat window */}
-                <ChatWindow
-                    activeChat={activeChat}
-                    currentUser={currentUser}
-                    onMessageSent={fetchConversations}
-                    onOpenUserProfile={handleOpenUserProfile}
-                    backendUrl={backendUrl}
-                    onlineUsers={onlineUsers}
-                    onCloseChat={handleCloseChat}
-                />
+                {/* Right column — chat window
+                    Mobile: full-width, hidden when no chat is active
+                    Desktop: fills remaining space, always visible */}
+                <div className={`
+                    flex-1 flex flex-col min-h-0 min-w-0
+                    ${activeChat ? 'flex' : 'hidden md:flex'}
+                `}>
+                    <ChatWindow
+                        activeChat={activeChat}
+                        currentUser={currentUser}
+                        onMessageSent={fetchConversations}
+                        onOpenUserProfile={handleOpenUserProfile}
+                        backendUrl={backendUrl}
+                        onlineUsers={onlineUsers}
+                        onCloseChat={handleCloseChat}
+                    />
+                </div>
 
                 {/* Profile Panel Overlay */}
                 {profileUser && (
