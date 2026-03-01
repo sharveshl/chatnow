@@ -1,5 +1,6 @@
 import Message from "../models/messagemodel.js";
 import User from "../models/usermodel.js";
+import DeletedChat from "../models/deletedchatmodel.js";
 import mongoose from "mongoose";
 
 // Send a message
@@ -67,6 +68,12 @@ export const getMessages = async (req, res) => {
             return res.status(404).json({ message: "User not found" });
         }
 
+        // Check if this user has soft-deleted this conversation
+        const deletion = await DeletedChat.findOne({
+            user: currentUserId,
+            otherUser: otherUser._id
+        }).lean();
+
         // Build query filter
         const filter = {
             $or: [
@@ -75,9 +82,14 @@ export const getMessages = async (req, res) => {
             ]
         };
 
+        // Only show messages after the deletion timestamp
+        if (deletion?.deletedAt) {
+            filter.createdAt = { $gt: deletion.deletedAt };
+        }
+
         // Cursor pagination: fetch messages older than `before`
         if (before && mongoose.Types.ObjectId.isValid(before)) {
-            filter._id = { $lt: new mongoose.Types.ObjectId(before) };
+            filter._id = { ...(filter._id || {}), $lt: new mongoose.Types.ObjectId(before) };
         }
 
         // Fetch limit+1 to check if there are more
@@ -109,6 +121,13 @@ export const getMessages = async (req, res) => {
 export const getConversations = async (req, res) => {
     try {
         const currentUserId = req.user._id;
+
+        // Get all soft-deleted conversations for this user
+        const deletions = await DeletedChat.find({ user: currentUserId }).lean();
+        const deletionMap = {};
+        for (const d of deletions) {
+            deletionMap[d.otherUser.toString()] = d.deletedAt;
+        }
 
         const conversations = await Message.aggregate([
             {
@@ -164,6 +183,7 @@ export const getConversations = async (req, res) => {
             {
                 $project: {
                     _id: 0,
+                    otherUserId: "$_id",
                     user: 1,
                     lastMessage: 1,
                     lastMessageTime: 1,
@@ -173,13 +193,23 @@ export const getConversations = async (req, res) => {
             }
         ]);
 
-        return res.status(200).json(conversations);
+        // Filter out soft-deleted conversations (where lastMessageTime <= deletedAt)
+        const filtered = conversations.filter(conv => {
+            const deletedAt = deletionMap[conv.otherUserId?.toString()];
+            if (!deletedAt) return true; // not deleted
+            return conv.lastMessageTime > deletedAt; // only show if new messages after deletion
+        });
+
+        // Remove the helper field before returning
+        const result = filtered.map(({ otherUserId, ...rest }) => rest);
+
+        return res.status(200).json(result);
     } catch (err) {
         return res.status(500).json({ message: err.message });
     }
 };
 
-// Delete entire conversation between current user and another user
+// Soft-delete conversation — only hides messages for requesting user
 export const deleteConversation = async (req, res) => {
     try {
         const { username } = req.params;
@@ -190,18 +220,16 @@ export const deleteConversation = async (req, res) => {
             return res.status(404).json({ message: "User not found" });
         }
 
-        const result = await Message.deleteMany({
-            $or: [
-                { sender: currentUserId, receiver: otherUser._id },
-                { sender: otherUser._id, receiver: currentUserId }
-            ]
-        });
+        // Upsert: set deletedAt to now (if re-deleting, update the timestamp)
+        await DeletedChat.findOneAndUpdate(
+            { user: currentUserId, otherUser: otherUser._id },
+            { deletedAt: new Date() },
+            { upsert: true, new: true }
+        );
 
-        return res.status(200).json({
-            message: "Conversation deleted",
-            deletedCount: result.deletedCount
-        });
+        return res.status(200).json({ message: "Chat deleted for you" });
     } catch (err) {
         return res.status(500).json({ message: err.message });
     }
 };
+
