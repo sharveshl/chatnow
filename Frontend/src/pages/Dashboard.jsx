@@ -210,23 +210,23 @@ function Dashboard() {
 
     if (loading && !currentUser) {
         return (
-            <div className="min-h-screen bg-[#f0faf0] flex items-center justify-center">
-                <div className="w-8 h-8 border-2 border-emerald-200 border-t-emerald-500 rounded-full animate-spin" />
+            <div className="min-h-screen bg-[#0a0a12] flex items-center justify-center">
+                <div className="w-8 h-8 border-2 border-blue-400/20 border-t-blue-400 rounded-full animate-spin" />
             </div>
         );
     }
 
     return (
-        <div className="h-screen flex flex-col bg-[#f0faf0] overflow-hidden">
+        <div className="h-screen flex flex-col bg-[#0a0a12] overflow-hidden">
             {/* Top bar */}
-            <div className="h-14 bg-emerald-500 flex items-center justify-between px-4 md:px-5 flex-shrink-0">
+            <div className="h-14 bg-[#0a0a12] border-b border-[#1e1e2a] flex items-center justify-between px-4 md:px-5 flex-shrink-0">
                 <div className="flex items-center gap-2.5">
                     <img
                         src="/chatnow new logo svg.svg"
                         alt="ChatNow"
-                        className="w-8 h-8 md:w-9 md:h-9 rounded-lg object-contain bg-white p-0.5"
+                        className="w-8 h-8 md:w-9 md:h-9 rounded-lg object-contain"
                     />
-                    <span className="text-white text-sm font-bold tracking-tight">ChatNow</span>
+                    <span className="text-neutral-100 text-sm font-bold tracking-tight">ChatNow</span>
                 </div>
             </div>
 

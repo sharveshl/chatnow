@@ -11,7 +11,6 @@ function ProfilePanel({ user, isOwnProfile, onClose, onProfileUpdated, backendUr
     const [confirmDelete, setConfirmDelete] = useState(false);
     const fileInputRef = useRef(null);
 
-    // Fetch latest profile data
     useEffect(() => {
         if (user?.username) {
             API.get(`/users/profile/${user.username}`)
@@ -77,18 +76,11 @@ function ProfilePanel({ user, isOwnProfile, onClose, onProfileUpdated, backendUr
         setDeleting(true);
         try {
             await API.delete(`/messages/conversation/${profileData?.username}`);
-
-            // Clear local storage cache
             try {
                 localStorage.removeItem(`chatnow_msgs_${profileData?.username}`);
-            } catch {
-                // silently fail
-            }
-
+            } catch { }
             onDeleteChat?.(profileData?.username);
-        } catch {
-            // silently fail
-        } finally {
+        } catch { } finally {
             setDeleting(false);
             setConfirmDelete(false);
         }
@@ -104,15 +96,16 @@ function ProfilePanel({ user, isOwnProfile, onClose, onProfileUpdated, backendUr
             <div
                 className="profile-panel animate-slide-in-right"
                 onClick={(e) => e.stopPropagation()}
+                style={{ background: '#111118', borderLeft: '1px solid #1e1e2a' }}
             >
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100">
-                    <h2 className="text-base font-semibold text-neutral-900">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-[#1e1e2a]">
+                    <h2 className="text-base font-semibold text-neutral-100">
                         {isOwnProfile ? "My Profile" : "Profile"}
                     </h2>
                     <button
                         onClick={onClose}
-                        className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-neutral-100 transition-colors cursor-pointer"
+                        className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#1a1a25] transition-colors cursor-pointer"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-neutral-500">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
@@ -125,13 +118,9 @@ function ProfilePanel({ user, isOwnProfile, onClose, onProfileUpdated, backendUr
                     {/* Avatar */}
                     <div className="flex flex-col items-center mb-8">
                         <div className="relative group">
-                            <div className="w-24 h-24 rounded-full flex items-center justify-center text-2xl font-bold overflow-hidden bg-emerald-500 text-white">
+                            <div className="w-24 h-24 rounded-full flex items-center justify-center text-2xl font-bold overflow-hidden bg-[#0066FF] text-white">
                                 {photoUrl ? (
-                                    <img
-                                        src={photoUrl}
-                                        alt={profileData?.name}
-                                        className="w-full h-full object-cover"
-                                    />
+                                    <img src={photoUrl} alt={profileData?.name} className="w-full h-full object-cover" />
                                 ) : (
                                     getInitial(profileData?.name)
                                 )}
@@ -141,7 +130,7 @@ function ProfilePanel({ user, isOwnProfile, onClose, onProfileUpdated, backendUr
                                 <button
                                     onClick={() => fileInputRef.current?.click()}
                                     disabled={uploading}
-                                    className="absolute inset-0 w-24 h-24 rounded-full bg-black/0 group-hover:bg-black/40 flex items-center justify-center transition-all cursor-pointer"
+                                    className="absolute inset-0 w-24 h-24 rounded-full bg-black/0 group-hover:bg-black/50 flex items-center justify-center transition-all cursor-pointer"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"
                                         className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity">
@@ -152,7 +141,7 @@ function ProfilePanel({ user, isOwnProfile, onClose, onProfileUpdated, backendUr
                             )}
 
                             {uploading && (
-                                <div className="absolute inset-0 w-24 h-24 rounded-full bg-black/50 flex items-center justify-center">
+                                <div className="absolute inset-0 w-24 h-24 rounded-full bg-black/60 flex items-center justify-center">
                                     <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                                 </div>
                             )}
@@ -166,21 +155,21 @@ function ProfilePanel({ user, isOwnProfile, onClose, onProfileUpdated, backendUr
                             />
                         </div>
 
-                        <h3 className="text-lg font-semibold text-neutral-900 mt-4">{profileData?.name}</h3>
-                        <p className="text-sm text-neutral-400">@{profileData?.username}</p>
+                        <h3 className="text-lg font-semibold text-neutral-100 mt-4">{profileData?.name}</h3>
+                        <p className="text-sm text-neutral-500">@{profileData?.username}</p>
                     </div>
 
                     {/* Info Cards */}
                     <div className="space-y-4">
                         {/* Email */}
-                        <div className="bg-neutral-50 rounded-xl px-4 py-3">
-                            <p className="text-[10px] uppercase tracking-wider text-neutral-400 font-medium mb-1">Email</p>
-                            <p className="text-sm text-neutral-900">{profileData?.email}</p>
+                        <div className="bg-[#1a1a25] rounded-xl px-4 py-3">
+                            <p className="text-[10px] uppercase tracking-wider text-neutral-500 font-medium mb-1">Email</p>
+                            <p className="text-sm text-neutral-200">{profileData?.email}</p>
                         </div>
 
                         {/* About */}
-                        <div className="bg-neutral-50 rounded-xl px-4 py-3">
-                            <p className="text-[10px] uppercase tracking-wider text-neutral-400 font-medium mb-1">About</p>
+                        <div className="bg-[#1a1a25] rounded-xl px-4 py-3">
+                            <p className="text-[10px] uppercase tracking-wider text-neutral-500 font-medium mb-1">About</p>
                             {isOwnProfile ? (
                                 <div>
                                     <textarea
@@ -189,17 +178,17 @@ function ProfilePanel({ user, isOwnProfile, onClose, onProfileUpdated, backendUr
                                         placeholder="Write something about yourself..."
                                         maxLength={200}
                                         rows={3}
-                                        className="w-full text-sm text-neutral-900 bg-white border border-neutral-200 rounded-lg px-3 py-2 resize-none
-                                            focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent
-                                            placeholder-neutral-300"
+                                        className="w-full text-sm text-neutral-100 bg-[#0a0a12] border border-[#2a2a35] rounded-lg px-3 py-2 resize-none
+                                            focus:outline-none focus:ring-2 focus:ring-[#0084FF] focus:border-transparent
+                                            placeholder-neutral-600"
                                     />
                                     <div className="flex items-center justify-between mt-2">
-                                        <span className="text-[10px] text-neutral-300">{about.length}/200</span>
+                                        <span className="text-[10px] text-neutral-600">{about.length}/200</span>
                                         <button
                                             onClick={handleSaveAbout}
                                             disabled={saving}
-                                            className="px-4 py-1.5 bg-emerald-500 text-white text-xs font-medium rounded-lg
-                                                hover:bg-emerald-600 active:scale-95 disabled:opacity-50
+                                            className="px-4 py-1.5 bg-[#0084FF] text-white text-xs font-medium rounded-lg
+                                                hover:bg-[#0070DD] active:scale-95 disabled:opacity-50
                                                 transition-all cursor-pointer"
                                         >
                                             {saving ? "Saving..." : saved ? "Saved ✓" : "Save"}
@@ -207,7 +196,7 @@ function ProfilePanel({ user, isOwnProfile, onClose, onProfileUpdated, backendUr
                                     </div>
                                 </div>
                             ) : (
-                                <p className="text-sm text-neutral-900">
+                                <p className="text-sm text-neutral-200">
                                     {profileData?.about || "No about info"}
                                 </p>
                             )}
@@ -215,13 +204,13 @@ function ProfilePanel({ user, isOwnProfile, onClose, onProfileUpdated, backendUr
 
                         {/* Joined */}
                         {joinDate && (
-                            <div className="bg-neutral-50 rounded-xl px-4 py-3">
-                                <p className="text-[10px] uppercase tracking-wider text-neutral-400 font-medium mb-1">Joined</p>
-                                <p className="text-sm text-neutral-900">{joinDate}</p>
+                            <div className="bg-[#1a1a25] rounded-xl px-4 py-3">
+                                <p className="text-[10px] uppercase tracking-wider text-neutral-500 font-medium mb-1">Joined</p>
+                                <p className="text-sm text-neutral-200">{joinDate}</p>
                             </div>
                         )}
 
-                        {/* Delete Chat — other user's profile only */}
+                        {/* Delete Chat */}
                         {!isOwnProfile && onDeleteChat && (
                             <button
                                 onClick={handleDeleteChat}
@@ -230,7 +219,7 @@ function ProfilePanel({ user, isOwnProfile, onClose, onProfileUpdated, backendUr
                                     transition-all cursor-pointer border
                                     ${confirmDelete
                                         ? 'bg-red-600 text-white border-red-600 hover:bg-red-700'
-                                        : 'bg-red-50 text-red-600 border-red-100 hover:bg-red-100'
+                                        : 'bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20'
                                     }
                                     active:scale-[0.98] disabled:opacity-50`}
                             >
@@ -241,12 +230,12 @@ function ProfilePanel({ user, isOwnProfile, onClose, onProfileUpdated, backendUr
                             </button>
                         )}
 
-                        {/* Logout — own profile only */}
+                        {/* Logout */}
                         {isOwnProfile && onLogout && (
                             <button
                                 onClick={onLogout}
-                                className="w-full flex items-center justify-center gap-2 px-4 py-3 mt-4 bg-red-50 text-red-600 rounded-xl text-sm font-medium
-                                    hover:bg-red-100 active:scale-[0.98] transition-all cursor-pointer border border-red-100"
+                                className="w-full flex items-center justify-center gap-2 px-4 py-3 mt-4 bg-red-500/10 text-red-400 rounded-xl text-sm font-medium
+                                    hover:bg-red-500/20 active:scale-[0.98] transition-all cursor-pointer border border-red-500/20"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />

@@ -98,14 +98,14 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#fafafa] flex items-center justify-center px-4">
+    <div className="min-h-screen bg-[#0a0a12] flex items-center justify-center px-4">
       <div className="w-full max-w-md animate-slide-up">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">
+          <h1 className="text-2xl font-bold text-neutral-100 tracking-tight">
             Welcome back
           </h1>
-          <p className="text-neutral-400 text-sm mt-1">
+          <p className="text-neutral-500 text-sm mt-1">
             Sign in to continue to ChatNow
           </p>
         </div>
@@ -113,7 +113,7 @@ const Login = () => {
         {/* Saved Profiles */}
         {savedProfiles.length > 0 && (
           <div className="mb-6 animate-fade-in">
-            <p className="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-3">
+            <p className="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">
               Saved Profiles
             </p>
             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
@@ -128,8 +128,8 @@ const Login = () => {
                   {/* Remove button */}
                   <button
                     onClick={(e) => handleRemoveProfile(e, profile.email)}
-                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-neutral-200 hover:bg-red-500 hover:text-white
-                                            text-neutral-500 rounded-full text-xs flex items-center justify-center
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-[#2a2a35] hover:bg-red-500 hover:text-white
+                                            text-neutral-400 rounded-full text-xs flex items-center justify-center
                                             opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                     title="Remove profile"
                   >
@@ -142,18 +142,18 @@ const Login = () => {
         )}
 
         {/* Login Form */}
-        <div className="bg-white rounded-2xl border border-neutral-200 p-8 shadow-sm">
+        <div className="bg-[#111118] rounded-2xl border border-[#1e1e2a] p-8 shadow-lg">
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Error Message */}
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-xl animate-fade-in">
+              <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm px-4 py-3 rounded-xl animate-fade-in">
                 {error}
               </div>
             )}
 
             {/* Email */}
             <div>
-              <label className="block text-xs font-medium text-neutral-500 mb-1.5">
+              <label className="block text-xs font-medium text-neutral-400 mb-1.5">
                 Email
               </label>
               <input
@@ -167,9 +167,9 @@ const Login = () => {
                   }
                 }}
                 placeholder="you@example.com"
-                className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm
-                                    text-neutral-900 placeholder-neutral-300
-                                    focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent
+                className="w-full px-4 py-3 bg-[#0a0a12] border border-[#2a2a35] rounded-xl text-sm
+                                    text-neutral-100 placeholder-neutral-600
+                                    focus:outline-none focus:ring-2 focus:ring-[#0084FF] focus:border-transparent
                                     transition-all"
               />
             </div>
@@ -188,15 +188,15 @@ const Login = () => {
                     setError("");
                   }}
                   placeholder="••••••••"
-                  className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm
-                                        text-neutral-900 placeholder-neutral-300
-                                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                  className="w-full px-4 py-3 bg-[#0a0a12] border border-[#2a2a35] rounded-xl text-sm
+                                        text-neutral-100 placeholder-neutral-600
+                                        focus:outline-none focus:ring-2 focus:ring-[#0084FF] focus:border-transparent
                                         transition-all pr-12"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 text-xs font-medium cursor-pointer"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 text-xs font-medium cursor-pointer"
                 >
                   {showPassword ? "Hide" : "Show"}
                 </button>
@@ -207,8 +207,8 @@ const Login = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-emerald-500 text-white py-3 rounded-xl text-sm font-medium
-                                hover:bg-emerald-600 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed
+              className="w-full bg-[#0084FF] text-white py-3 rounded-xl text-sm font-medium
+                                hover:bg-[#0070DD] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed
                                 transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
             >
               {loading ? (
@@ -224,11 +224,11 @@ const Login = () => {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-sm text-neutral-400 mt-6">
+        <p className="text-center text-sm text-neutral-500 mt-6">
           Don&apos;t have an account?{" "}
           <Link
             to="/signup"
-            className="text-emerald-600 font-medium hover:underline"
+            className="text-[#0084FF] font-medium hover:underline"
           >
             Create one
           </Link>

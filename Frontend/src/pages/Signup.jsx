@@ -68,24 +68,24 @@ function Signup() {
     };
 
     return (
-        <div className="min-h-screen bg-[#fafafa] flex items-center justify-center px-4">
+        <div className="min-h-screen bg-[#0a0a12] flex items-center justify-center px-4">
             <div className="w-full max-w-md animate-slide-up">
                 {/* Header */}
                 <div className="text-center mb-8">
-                    <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">
+                    <h1 className="text-2xl font-bold text-neutral-100 tracking-tight">
                         Create your account
                     </h1>
-                    <p className="text-neutral-400 text-sm mt-1">
+                    <p className="text-neutral-500 text-sm mt-1">
                         Join ChatNow and start chatting
                     </p>
                 </div>
 
                 {/* Signup Form */}
-                <div className="bg-white rounded-2xl border border-neutral-200 p-8 shadow-sm">
+                <div className="bg-[#111118] rounded-2xl border border-[#1e1e2a] p-8 shadow-lg">
                     <form onSubmit={handleSubmit} className="space-y-4">
                         {/* Error Message */}
                         {error && (
-                            <div className="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-xl animate-fade-in">
+                            <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm px-4 py-3 rounded-xl animate-fade-in">
                                 {error}
                             </div>
                         )}
@@ -101,9 +101,9 @@ function Signup() {
                                 value={formData.username}
                                 onChange={handleChange}
                                 placeholder="johndoe"
-                                className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm
-                                    text-neutral-900 placeholder-neutral-300
-                                    focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent
+                                className="w-full px-4 py-3 bg-[#0a0a12] border border-[#2a2a35] rounded-xl text-sm
+                                    text-neutral-100 placeholder-neutral-600
+                                    focus:outline-none focus:ring-2 focus:ring-[#0084FF] focus:border-transparent
                                     transition-all"
                             />
                         </div>
@@ -119,9 +119,9 @@ function Signup() {
                                 value={formData.name}
                                 onChange={handleChange}
                                 placeholder="John Doe"
-                                className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm
-                                    text-neutral-900 placeholder-neutral-300
-                                    focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent
+                                className="w-full px-4 py-3 bg-[#0a0a12] border border-[#2a2a35] rounded-xl text-sm
+                                    text-neutral-100 placeholder-neutral-600
+                                    focus:outline-none focus:ring-2 focus:ring-[#0084FF] focus:border-transparent
                                     transition-all"
                             />
                         </div>
@@ -137,16 +137,16 @@ function Signup() {
                                 value={formData.email}
                                 onChange={handleChange}
                                 placeholder="you@example.com"
-                                className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm
-                                       text-neutral-900 placeholder-neutral-300
-                                    focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent
+                                className="w-full px-4 py-3 bg-[#0a0a12] border border-[#2a2a35] rounded-xl text-sm
+                                       text-neutral-100 placeholder-neutral-600
+                                    focus:outline-none focus:ring-2 focus:ring-[#0084FF] focus:border-transparent
                                     transition-all"
                             />
                         </div>
 
                         {/* Password */}
                         <div>
-                            <label className="block text-xs font-medium text-neutral-500 mb-1.5">
+                            <label className="block text-xs font-medium text-neutral-400 mb-1.5">
                                 Password
                             </label>
                             <div className="relative">
@@ -156,15 +156,15 @@ function Signup() {
                                     value={formData.password}
                                     onChange={handleChange}
                                     placeholder="Min 6 characters"
-                                    className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm
-                                        text-neutral-900 placeholder-neutral-300
-                                        focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent
+                                    className="w-full px-4 py-3 bg-[#0a0a12] border border-[#2a2a35] rounded-xl text-sm
+                                        text-neutral-100 placeholder-neutral-600
+                                        focus:outline-none focus:ring-2 focus:ring-[#0084FF] focus:border-transparent
                                         transition-all pr-12"
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 text-xs font-medium cursor-pointer"
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 text-xs font-medium cursor-pointer"
                                 >
                                     {showPassword ? "Hide" : "Show"}
                                 </button>
@@ -175,8 +175,8 @@ function Signup() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-emerald-500 text-white py-3 rounded-xl text-sm font-medium
-                                hover:bg-emerald-600 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed
+                            className="w-full bg-[#0084FF] text-white py-3 rounded-xl text-sm font-medium
+                                hover:bg-[#0070DD] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed
                                 transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
                         >
                             {loading ? (
@@ -192,11 +192,11 @@ function Signup() {
                 </div>
 
                 {/* Footer */}
-                <p className="text-center text-sm text-neutral-400 mt-6">
+                <p className="text-center text-sm text-neutral-500 mt-6">
                     Already have an account?{" "}
                     <Link
                         to="/login"
-                        className="text-emerald-600 font-medium hover:underline"
+                        className="text-[#0084FF] font-medium hover:underline"
                     >
                         Sign in
                     </Link>
