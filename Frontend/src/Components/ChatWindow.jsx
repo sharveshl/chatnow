@@ -39,6 +39,11 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
     useEffect(() => {
         if (!activeChat?.username) return;
 
+        // Reset states to prevent bleed between chats
+        setSending(false);
+        setNewMessage("");
+        setLoadingMore(false);
+        setShowEmojiPicker(false);
         initialLoadRef.current = true;
 
         const cached = getCachedMessages(activeChat.username);
