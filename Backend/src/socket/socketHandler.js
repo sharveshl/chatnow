@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/usermodel.js';
 import Message from '../models/messagemodel.js';
+import { encryptMessage, decryptMessage } from '../utils/encryption.js';
 
 // Map of userId (string) -> socketId
 const onlineUsers = new Map();
@@ -76,11 +77,16 @@ export default function setupSocket(io) {
                     return callback?.({ error: 'Cannot send message to yourself' });
                 }
 
+                // Encrypt before saving
+                const { encrypted, iv, authTag } = encryptMessage(content.trim());
+
                 // Create & save message
                 const message = new Message({
                     sender: socket.user._id,
                     receiver: receiver._id,
-                    content: content.trim(),
+                    encrypted,
+                    iv,
+                    authTag,
                     status: 'sent'
                 });
 
@@ -99,7 +105,7 @@ export default function setupSocket(io) {
                         username: receiver.username,
                         name: receiver.name
                     },
-                    content: message.content,
+                    content: content.trim(),
                     status: message.status,
                     createdAt: message.createdAt,
                     updatedAt: message.updatedAt
@@ -193,12 +199,27 @@ export default function setupSocket(io) {
 // Deliver messages that were pending while user was offline
 async function deliverPendingMessages(socket, userId, io) {
     try {
-        const pendingMessages = await Message.find({
+        let pendingMessages = await Message.find({
             receiver: userId,
             status: 'sent'
         })
             .populate('sender', 'username name')
             .lean();
+
+        // Decrypt each pending message
+        pendingMessages = pendingMessages.map(msg => {
+            try {
+                return {
+                    ...msg,
+                    content: decryptMessage(msg.encrypted, msg.iv, msg.authTag),
+                    encrypted: undefined,
+                    iv: undefined,
+                    authTag: undefined
+                };
+            } catch {
+                return { ...msg, content: '[Unable to decrypt]', encrypted: undefined, iv: undefined, authTag: undefined };
+            }
+        });
 
         if (pendingMessages.length === 0) return;
 

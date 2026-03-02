@@ -2,6 +2,7 @@ import Message from "../models/messagemodel.js";
 import User from "../models/usermodel.js";
 import DeletedChat from "../models/deletedchatmodel.js";
 import mongoose from "mongoose";
+import { encryptMessage, decryptMessage } from "../utils/encryption.js";
 
 // Send a message
 export const sendMessage = async (req, res) => {
@@ -22,10 +23,15 @@ export const sendMessage = async (req, res) => {
             return res.status(400).json({ message: "Cannot send message to yourself" });
         }
 
+        // Encrypt the message content
+        const { encrypted, iv, authTag } = encryptMessage(content.trim());
+
         const message = new Message({
             sender: senderId,
             receiver: receiver._id,
-            content: content.trim()
+            encrypted,
+            iv,
+            authTag
         });
 
         await message.save();
@@ -43,7 +49,7 @@ export const sendMessage = async (req, res) => {
                 username: receiver.username,
                 name: receiver.name
             },
-            content: message.content,
+            content: content.trim(),
             status: message.status,
             createdAt: message.createdAt,
             updatedAt: message.updatedAt
@@ -105,13 +111,28 @@ export const getMessages = async (req, res) => {
         // Reverse to chronological order for display
         messages.reverse();
 
+        // Decrypt each message before sending to client
+        const decryptedMessages = messages.map(msg => {
+            try {
+                return {
+                    ...msg,
+                    content: decryptMessage(msg.encrypted, msg.iv, msg.authTag),
+                    encrypted: undefined,
+                    iv: undefined,
+                    authTag: undefined
+                };
+            } catch {
+                return { ...msg, content: '[Unable to decrypt]', encrypted: undefined, iv: undefined, authTag: undefined };
+            }
+        });
+
         // Mark received messages as read (fire & forget)
         Message.updateMany(
             { sender: otherUser._id, receiver: currentUserId, status: { $ne: 'read' } },
             { $set: { status: 'read' } }
         ).exec();
 
-        return res.status(200).json({ messages, hasMore });
+        return res.status(200).json({ messages: decryptedMessages, hasMore });
     } catch (err) {
         return res.status(500).json({ message: err.message });
     }
@@ -148,7 +169,9 @@ export const getConversations = async (req, res) => {
                             "$sender"
                         ]
                     },
-                    lastMessage: { $first: "$content" },
+                    lastMessage: { $first: "$encrypted" },
+                    lastMessageIv: { $first: "$iv" },
+                    lastMessageAuthTag: { $first: "$authTag" },
                     lastMessageTime: { $first: "$createdAt" },
                     lastMessageSender: { $first: "$sender" },
                     unreadCount: {
@@ -186,6 +209,8 @@ export const getConversations = async (req, res) => {
                     otherUserId: "$_id",
                     user: 1,
                     lastMessage: 1,
+                    lastMessageIv: 1,
+                    lastMessageAuthTag: 1,
                     lastMessageTime: 1,
                     lastMessageSender: 1,
                     unreadCount: 1
@@ -200,8 +225,18 @@ export const getConversations = async (req, res) => {
             return conv.lastMessageTime > deletedAt; // only show if new messages after deletion
         });
 
-        // Remove the helper field before returning
-        const result = filtered.map(({ otherUserId, ...rest }) => rest);
+        // Decrypt last message for each conversation & remove helper fields
+        const result = filtered.map(({ otherUserId, lastMessageIv, lastMessageAuthTag, lastMessage, ...rest }) => {
+            let decryptedLastMessage = lastMessage;
+            try {
+                if (lastMessage && lastMessageIv && lastMessageAuthTag) {
+                    decryptedLastMessage = decryptMessage(lastMessage, lastMessageIv, lastMessageAuthTag);
+                }
+            } catch {
+                decryptedLastMessage = '[Unable to decrypt]';
+            }
+            return { ...rest, lastMessage: decryptedLastMessage };
+        });
 
         return res.status(200).json(result);
     } catch (err) {

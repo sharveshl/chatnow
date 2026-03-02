@@ -13,10 +13,17 @@ const messageSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
-    content: {
+    encrypted: {
         type: String,
-        required: true,
-        trim: true
+        required: true
+    },
+    iv: {
+        type: String,
+        required: true
+    },
+    authTag: {
+        type: String,
+        required: true
     },
     status: {
         type: String,
