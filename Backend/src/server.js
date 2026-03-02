@@ -9,6 +9,7 @@ import { Server } from 'socket.io';
 import authRoutes from './routes/authroutes.js';
 import userRoutes from './routes/userroutes.js';
 import messageRoutes from './routes/messageroutes.js';
+import groupRoutes from './routes/grouproutes.js';
 import setupSocket from './socket/socketHandler.js';
 
 dotenv.config();
@@ -56,3 +57,4 @@ mongoose.connect(process.env.MONGO_URL)
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/groups', groupRoutes);

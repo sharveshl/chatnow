@@ -1,6 +1,8 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/usermodel.js';
 import Message from '../models/messagemodel.js';
+import Group from '../models/groupmodel.js';
+import GroupMessage from '../models/groupmessagemodel.js';
 import { encryptMessage, decryptMessage } from '../utils/encryption.js';
 
 // Map of userId (string) -> socketId
@@ -41,7 +43,7 @@ export default function setupSocket(io) {
         }
     });
 
-    io.on('connection', (socket) => {
+    io.on('connection', async (socket) => {
         const userId = socket.user._id.toString();
         console.log(`✓ User connected: ${socket.user.username} (${userId})`);
 
@@ -56,10 +58,20 @@ export default function setupSocket(io) {
         const onlineList = Array.from(onlineUsers.keys());
         socket.emit('online_users', onlineList);
 
+        // Auto-join all group rooms this user is a member of
+        try {
+            const userGroups = await Group.find({ members: socket.user._id }).select('_id').lean();
+            for (const g of userGroups) {
+                socket.join(`group:${g._id}`);
+            }
+        } catch (err) {
+            console.error('Failed to join group rooms:', err);
+        }
+
         // Deliver any undelivered messages that were sent while this user was offline
         deliverPendingMessages(socket, userId, io);
 
-        // ─── SEND MESSAGE ───────────────────────────────────────────
+        // ─── SEND DM MESSAGE ─────────────────────────────────────────
         socket.on('send_message', async (data, callback) => {
             try {
                 const { receiverUsername, content } = data;
@@ -137,7 +149,7 @@ export default function setupSocket(io) {
             }
         });
 
-        // ─── MESSAGE READ ───────────────────────────────────────────
+        // ─── DM MESSAGE READ ─────────────────────────────────────────
         socket.on('message_read', async (data) => {
             try {
                 const { senderUsername } = data;
@@ -170,7 +182,7 @@ export default function setupSocket(io) {
             }
         });
 
-        // ─── TYPING INDICATORS — targeted to specific receiver ───
+        // ─── DM TYPING INDICATORS ────────────────────────────────────
         socket.on('typing_start', async ({ receiverUsername }) => {
             if (!receiverUsername) return;
             const receiverId = await resolveUserId(receiverUsername);
@@ -191,7 +203,105 @@ export default function setupSocket(io) {
             }
         });
 
-        // ─── DISCONNECT ─────────────────────────────────────────────
+        // ─── GROUP: SEND MESSAGE ─────────────────────────────────────
+        socket.on('group_send_message', async (data, callback) => {
+            try {
+                const { groupId, content } = data;
+
+                if (!groupId || !content?.trim()) {
+                    return callback?.({ error: 'Group ID and content are required' });
+                }
+
+                const group = await Group.findById(groupId).lean();
+                if (!group) return callback?.({ error: 'Group not found' });
+
+                const isMember = group.members.some(m => m.toString() === userId);
+                if (!isMember) return callback?.({ error: 'Not a member of this group' });
+
+                const { encrypted, iv, authTag } = encryptMessage(content.trim());
+
+                const message = new GroupMessage({
+                    group: groupId,
+                    sender: socket.user._id,
+                    encrypted,
+                    iv,
+                    authTag,
+                    readBy: [socket.user._id]
+                });
+
+                await message.save();
+
+                const outgoing = {
+                    _id: message._id,
+                    group: groupId,
+                    sender: {
+                        _id: socket.user._id,
+                        username: socket.user.username,
+                        name: socket.user.name
+                    },
+                    content: content.trim(),
+                    readBy: [socket.user._id],
+                    createdAt: message.createdAt,
+                    updatedAt: message.updatedAt
+                };
+
+                // ACK to sender
+                callback?.({ message: outgoing });
+
+                // Broadcast to all group members in the room (excluding sender)
+                socket.to(`group:${groupId}`).emit('group_receive_message', outgoing);
+
+            } catch (err) {
+                console.error('group_send_message error:', err);
+                callback?.({ error: 'Failed to send group message' });
+            }
+        });
+
+        // ─── GROUP: MARK READ ─────────────────────────────────────────
+        socket.on('group_message_read', async ({ groupId }) => {
+            if (!groupId) return;
+            try {
+                await GroupMessage.updateMany(
+                    { group: groupId, sender: { $ne: socket.user._id }, readBy: { $ne: socket.user._id } },
+                    { $addToSet: { readBy: socket.user._id } }
+                );
+                // Notify group room that this user has read
+                socket.to(`group:${groupId}`).emit('group_messages_read', {
+                    groupId,
+                    readerUsername: socket.user.username,
+                    readerId: userId
+                });
+            } catch (err) {
+                console.error('group_message_read error:', err);
+            }
+        });
+
+        // ─── GROUP: TYPING INDICATORS ────────────────────────────────
+        socket.on('group_typing_start', ({ groupId }) => {
+            if (!groupId) return;
+            socket.to(`group:${groupId}`).emit('group_user_typing', {
+                groupId,
+                username: socket.user.username,
+                userId
+            });
+        });
+
+        socket.on('group_typing_stop', ({ groupId }) => {
+            if (!groupId) return;
+            socket.to(`group:${groupId}`).emit('group_user_stopped_typing', {
+                groupId,
+                username: socket.user.username,
+                userId
+            });
+        });
+
+        // ─── GROUP: JOIN NEWLY CREATED GROUP ─────────────────────────
+        // Called by members when they receive a group_created event so they join the room
+        socket.on('join_group', ({ groupId }) => {
+            if (groupId) socket.join(`group:${groupId}`);
+        });
+
+        // ─── DISCONNECT ───────────────────────────────────────────────
         socket.on('disconnect', () => {
             console.log(`✗ User disconnected: ${socket.user.username}`);
             onlineUsers.delete(userId);
