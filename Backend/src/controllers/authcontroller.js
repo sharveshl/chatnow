@@ -10,10 +10,11 @@ export const registerUser = async (req, res) => {
         });
 
         if (existingUser) {
-            const field = existingUser.username === username ? "Username" : "Email";
-            return res.status(400).json({
-                message: `${field} already exists`
-            });
+            // Deleted accounts still block username/email reuse
+            if (existingUser.username === username) {
+                return res.status(400).json({ message: "Username already exists" });
+            }
+            return res.status(400).json({ message: "Email already exists" });
         }
 
         const salt = await bcrypt.genSalt(10);
@@ -57,20 +58,21 @@ export const registerUser = async (req, res) => {
 export const loginUser = async (req, res) => {
     try {
         const { email, password } = req.body;
-        const user = await User.findOne({
-            email
-        });
+        const user = await User.findOne({ email });
         if (!user) {
-            return res.status(400).json({
-                message: "Invalid email"
-            })
+            return res.status(400).json({ message: "Invalid email" })
+        }
+
+        // Block deleted accounts with a clear message
+        if (user.isDeleted) {
+            return res.status(403).json({
+                message: "This account has been deleted and can no longer be accessed."
+            });
         }
 
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
-            return res.status(400).json({
-                message: 'Invalid password'
-            })
+            return res.status(400).json({ message: 'Invalid password' })
         }
 
         const token = jwt.sign(
@@ -79,22 +81,18 @@ export const loginUser = async (req, res) => {
             { expiresIn: "7d" }
         );
 
-        return res.status(200).json(
-            {
-                message: "Login Successful",
-                token,
-                user: {
-                    id: user._id,
-                    username: user.username,
-                    name: user.name,
-                    email: user.email
-                }
+        return res.status(200).json({
+            message: "Login Successful",
+            token,
+            user: {
+                id: user._id,
+                username: user.username,
+                name: user.name,
+                email: user.email
             }
-        );
+        });
     }
     catch (err) {
-        return res.status(500).json({
-            message: err.message
-        });
+        return res.status(500).json({ message: err.message });
     }
 };

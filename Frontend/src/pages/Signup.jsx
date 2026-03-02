@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import API from "../service/api.js";
 import { useNavigate, Link } from "react-router-dom";
 
@@ -15,7 +15,41 @@ function Signup() {
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
 
+    // Username availability state
+    const [usernameStatus, setUsernameStatus] = useState(null); // null | 'checking' | 'available' | 'taken' | 'short'
+    const usernameTimerRef = useRef(null);
+
     const navigate = useNavigate();
+
+    // Check username availability with debounce
+    useEffect(() => {
+        const username = formData.username.trim();
+
+        if (!username) {
+            setUsernameStatus(null);
+            return;
+        }
+        if (username.length < 3) {
+            setUsernameStatus('short');
+            return;
+        }
+
+        setUsernameStatus('checking');
+
+        if (usernameTimerRef.current) clearTimeout(usernameTimerRef.current);
+        usernameTimerRef.current = setTimeout(async () => {
+            try {
+                const res = await API.get(`/users/check-username/${encodeURIComponent(username)}`);
+                setUsernameStatus(res.data.available ? 'available' : 'taken');
+            } catch {
+                setUsernameStatus(null);
+            }
+        }, 500);
+
+        return () => {
+            if (usernameTimerRef.current) clearTimeout(usernameTimerRef.current);
+        };
+    }, [formData.username]);
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -26,7 +60,6 @@ function Signup() {
         e.preventDefault();
         setError("");
 
-        // Validation
         if (!formData.username.trim() || !formData.name.trim() || !formData.email.trim() || !formData.password.trim()) {
             setError("Please fill in all fields");
             return;
@@ -34,6 +67,11 @@ function Signup() {
 
         if (formData.username.length < 3) {
             setError("Username must be at least 3 characters");
+            return;
+        }
+
+        if (usernameStatus === 'taken') {
+            setError("That username is already taken. Please choose another.");
             return;
         }
 
@@ -47,10 +85,8 @@ function Signup() {
             const res = await API.post("/auth/register", formData);
             const { token, user } = res.data;
 
-            // Save token
             localStorage.setItem("token", token);
 
-            // Save profile to localStorage
             const profiles = JSON.parse(localStorage.getItem(PROFILES_KEY) || "[]");
             profiles.unshift({
                 name: user.name,
@@ -65,6 +101,29 @@ function Signup() {
         } finally {
             setLoading(false);
         }
+    };
+
+    // Username status indicator
+    const renderUsernameHint = () => {
+        if (!formData.username.trim()) return null;
+        if (usernameStatus === 'short') {
+            return <p className="text-xs text-neutral-500 mt-1.5">At least 3 characters required</p>;
+        }
+        if (usernameStatus === 'checking') {
+            return (
+                <p className="text-xs text-neutral-500 mt-1.5 flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 border border-neutral-500 border-t-transparent rounded-full animate-spin inline-block" />
+                    Checking availability…
+                </p>
+            );
+        }
+        if (usernameStatus === 'available') {
+            return <p className="text-xs text-green-400 mt-1.5">✓ Username is available</p>;
+        }
+        if (usernameStatus === 'taken') {
+            return <p className="text-xs text-red-400 mt-1.5">✗ Username is already taken</p>;
+        }
+        return null;
     };
 
     return (
@@ -101,11 +160,15 @@ function Signup() {
                                 value={formData.username}
                                 onChange={handleChange}
                                 placeholder="johndoe"
-                                className="w-full px-4 py-3 bg-[#0a0a12] border border-[#2a2a35] rounded-xl text-sm
+                                className={`w-full px-4 py-3 bg-[#0a0a12] border rounded-xl text-sm
                                     text-neutral-100 placeholder-neutral-600
                                     focus:outline-none focus:ring-2 focus:ring-[#0084FF] focus:border-transparent
-                                    transition-all"
+                                    transition-all
+                                    ${usernameStatus === 'available' ? 'border-green-500/50' :
+                                        usernameStatus === 'taken' ? 'border-red-500/50' :
+                                            'border-[#2a2a35]'}`}
                             />
+                            {renderUsernameHint()}
                         </div>
 
                         {/* Name */}
@@ -174,7 +237,7 @@ function Signup() {
                         {/* Submit */}
                         <button
                             type="submit"
-                            disabled={loading}
+                            disabled={loading || usernameStatus === 'taken' || usernameStatus === 'checking'}
                             className="w-full bg-[#0084FF] text-white py-3 rounded-xl text-sm font-medium
                                 hover:bg-[#0070DD] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed
                                 transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"

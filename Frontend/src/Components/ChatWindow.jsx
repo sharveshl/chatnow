@@ -284,8 +284,10 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
         return `${base}${photoPath}`;
     };
 
-    const isOnline = activeChat && onlineUsers?.has(activeChat._id?.toString?.() || activeChat._id);
-    const isTyping = activeChat && typingUsers?.has(activeChat.username);
+    const isDeletedChat = activeChat?.isDeleted;
+    const isOnline = activeChat && !isDeletedChat && onlineUsers?.has(activeChat._id?.toString?.() || activeChat._id);
+    const isTyping = activeChat && !isDeletedChat && typingUsers?.has(activeChat.username);
+    const displayChatName = isDeletedChat ? 'Deleted User' : activeChat?.name;
 
     // Empty state
     if (!activeChat) {
@@ -320,13 +322,19 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
                 </button>
 
                 <button
-                    onClick={() => onOpenUserProfile?.(activeChat)}
-                    className="flex items-center gap-3 flex-1 min-w-0 hover:bg-[#1a1a25] rounded-xl px-1 py-1 -mx-1 transition-colors cursor-pointer text-left"
+                    onClick={() => !isDeletedChat && onOpenUserProfile?.(activeChat)}
+                    className={`flex items-center gap-3 flex-1 min-w-0 rounded-xl px-1 py-1 -mx-1 transition-colors text-left
+                        ${isDeletedChat ? 'cursor-default' : 'hover:bg-[#1a1a25] cursor-pointer'}`}
                 >
                     <div className="relative flex-shrink-0">
-                        <div className="w-9 h-9 md:w-10 md:h-10 bg-[#0066FF] rounded-full flex items-center justify-center text-white text-sm font-semibold overflow-hidden">
-                            {chatPhoto ? (
-                                <img src={chatPhoto} alt={activeChat.name} className="w-full h-full object-cover" />
+                        <div className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center text-sm font-semibold overflow-hidden
+                            ${isDeletedChat ? 'bg-[#2a2a35] text-neutral-600' : 'bg-[#0066FF] text-white'}`}>
+                            {isDeletedChat ? (
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M22 10.5h-6m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM4 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 10.374 21c-2.331 0-4.512-.645-6.374-1.766Z" />
+                                </svg>
+                            ) : chatPhoto ? (
+                                <img src={chatPhoto} alt={displayChatName} className="w-full h-full object-cover" />
                             ) : (
                                 getInitial(activeChat.name)
                             )}
@@ -336,9 +344,11 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
                         )}
                     </div>
                     <div className="min-w-0">
-                        <h3 className="text-sm font-semibold text-neutral-100 truncate">{activeChat.name}</h3>
+                        <h3 className={`text-sm font-semibold truncate ${isDeletedChat ? 'text-neutral-500 italic' : 'text-neutral-100'}`}>{displayChatName}</h3>
                         <p className="text-xs text-neutral-500">
-                            {isTyping ? (
+                            {isDeletedChat ? (
+                                <span className="text-neutral-600">Account deleted</span>
+                            ) : isTyping ? (
                                 <span className="text-blue-400 animate-pulse">typing...</span>
                             ) : isOnline ? (
                                 <span className="text-green-400">Online</span>
@@ -417,69 +427,80 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
             </div>
 
             {/* Message Input */}
-            <div className="px-3 md:px-4 py-2 md:py-3 bg-[#111118] border-t border-[#1e1e2a] flex-shrink-0 relative">
-                {showEmojiPicker && (
-                    <div
-                        ref={emojiPickerRef}
-                        className="absolute bottom-full left-0 right-0 md:left-auto md:right-auto mb-2 mx-2 md:mx-0 z-50"
-                    >
-                        <EmojiPicker
-                            onEmojiClick={handleEmojiClick}
-                            width="100%"
-                            height={350}
-                            searchPlaceholder="Search emojis..."
-                            previewConfig={{ showPreview: false }}
-                            skinTonesDisabled
-                            lazyLoadEmojis
-                            theme="dark"
-                        />
-                    </div>
-                )}
+            {isDeletedChat ? (
+                <div className="px-4 py-4 bg-[#111118] border-t border-[#1e1e2a] flex-shrink-0 flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-neutral-600 flex-shrink-0">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 0 0 5.636 5.636m12.728 12.728A9 9 0 0 1 5.636 5.636m12.728 12.728L5.636 5.636" />
+                    </svg>
+                    <p className="text-xs text-neutral-600 text-center">
+                        This account has been deleted. You can no longer send messages.
+                    </p>
+                </div>
+            ) : (
+                <div className="px-3 md:px-4 py-2 md:py-3 bg-[#111118] border-t border-[#1e1e2a] flex-shrink-0 relative">
+                    {showEmojiPicker && (
+                        <div
+                            ref={emojiPickerRef}
+                            className="absolute bottom-full left-0 right-0 md:left-auto md:right-auto mb-2 mx-2 md:mx-0 z-50"
+                        >
+                            <EmojiPicker
+                                onEmojiClick={handleEmojiClick}
+                                width="100%"
+                                height={350}
+                                searchPlaceholder="Search emojis..."
+                                previewConfig={{ showPreview: false }}
+                                skinTonesDisabled
+                                lazyLoadEmojis
+                                theme="dark"
+                            />
+                        </div>
+                    )}
 
-                <form onSubmit={handleSend} className="flex items-center gap-1.5 md:gap-2">
-                    <button
-                        type="button"
-                        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                        className={`w-10 h-10 md:w-11 md:h-11 flex items-center justify-center rounded-xl transition-all cursor-pointer flex-shrink-0
+                    <form onSubmit={handleSend} className="flex items-center gap-1.5 md:gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                            className={`w-10 h-10 md:w-11 md:h-11 flex items-center justify-center rounded-xl transition-all cursor-pointer flex-shrink-0
                             ${showEmojiPicker
-                                ? 'bg-[#0084FF]/20 text-blue-400'
-                                : 'text-neutral-500 hover:text-neutral-300 hover:bg-[#1a1a25]'
-                            }`}
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 md:w-6 md:h-6">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.182 15.182a4.5 4.5 0 0 1-6.364 0M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75Zm-.375 0h.008v.015h-.008V9.75Zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75Zm-.375 0h.008v.015h-.008V9.75Z" />
-                        </svg>
-                    </button>
+                                    ? 'bg-[#0084FF]/20 text-blue-400'
+                                    : 'text-neutral-500 hover:text-neutral-300 hover:bg-[#1a1a25]'
+                                }`}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 md:w-6 md:h-6">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.182 15.182a4.5 4.5 0 0 1-6.364 0M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75Zm-.375 0h.008v.015h-.008V9.75Zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75Zm-.375 0h.008v.015h-.008V9.75Z" />
+                            </svg>
+                        </button>
 
-                    <input
-                        ref={inputRef}
-                        type="text"
-                        value={newMessage}
-                        onChange={handleInputChange}
-                        onFocus={() => setShowEmojiPicker(false)}
-                        placeholder="Type a message..."
-                        className="flex-1 px-3 md:px-4 py-2.5 md:py-3 bg-[#1a1a25] border border-[#2a2a35] rounded-xl text-sm
+                        <input
+                            ref={inputRef}
+                            type="text"
+                            value={newMessage}
+                            onChange={handleInputChange}
+                            onFocus={() => setShowEmojiPicker(false)}
+                            placeholder="Type a message..."
+                            className="flex-1 px-3 md:px-4 py-2.5 md:py-3 bg-[#1a1a25] border border-[#2a2a35] rounded-xl text-sm
                             text-neutral-100 placeholder-neutral-500
                             focus:outline-none focus:ring-2 focus:ring-[#0084FF] focus:border-transparent"
-                    />
+                        />
 
-                    <button
-                        type="submit"
-                        disabled={!newMessage.trim() || sending}
-                        className="w-10 h-10 md:w-11 md:h-11 bg-[#0084FF] text-white rounded-xl flex items-center justify-center
+                        <button
+                            type="submit"
+                            disabled={!newMessage.trim() || sending}
+                            className="w-10 h-10 md:w-11 md:h-11 bg-[#0084FF] text-white rounded-xl flex items-center justify-center
                             hover:bg-[#0070DD] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed
                             transition-all cursor-pointer flex-shrink-0"
-                    >
-                        {sending ? (
-                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
-                            </svg>
-                        )}
-                    </button>
-                </form>
-            </div>
+                        >
+                            {sending ? (
+                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
+                                </svg>
+                            )}
+                        </button>
+                    </form>
+                </div>
+            )}
         </div>
     );
 }

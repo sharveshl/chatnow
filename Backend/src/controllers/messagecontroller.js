@@ -202,7 +202,7 @@ export const getConversations = async (req, res) => {
                     foreignField: "_id",
                     as: "user",
                     pipeline: [
-                        { $project: { _id: 1, username: 1, name: 1, email: 1, profilePhoto: 1 } }
+                        { $project: { _id: 1, username: 1, name: 1, email: 1, profilePhoto: 1, isDeleted: 1 } }
                     ]
                 }
             },

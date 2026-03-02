@@ -118,6 +118,20 @@ router.post("/profile/photo", authMiddleware, upload.single("photo"), async (req
   }
 });
 
+// Check username availability (public — no auth required)
+router.get("/check-username/:username", async (req, res) => {
+  try {
+    const { username } = req.params;
+    if (!username || username.trim().length < 3) {
+      return res.status(200).json({ available: false, message: "Too short" });
+    }
+    const exists = await User.findOne({ username: username.trim() }).select('_id').lean();
+    return res.status(200).json({ available: !exists });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+});
+
 // Delete own account (soft-delete)
 router.delete("/account", authMiddleware, async (req, res) => {
   try {

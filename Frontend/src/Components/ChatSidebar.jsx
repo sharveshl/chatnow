@@ -161,7 +161,9 @@ function ChatSidebar({ conversations, activeChat, onSelectChat, currentUser, onN
                 ) : (
                     conversations.map((conv) => {
                         const isActive = activeChat?.username === conv.user.username;
-                        const convPhoto = getPhotoUrl(conv.user.profilePhoto);
+                        const isDeleted = conv.user?.isDeleted;
+                        const displayName = isDeleted ? 'Deleted User' : conv.user.name;
+                        const convPhoto = !isDeleted ? getPhotoUrl(conv.user.profilePhoto) : null;
                         return (
                             <button
                                 key={conv.user._id}
@@ -172,21 +174,25 @@ function ChatSidebar({ conversations, activeChat, onSelectChat, currentUser, onN
                             >
                                 <div className="relative flex-shrink-0">
                                     <div className={`w-11 h-11 rounded-full flex items-center justify-center text-sm font-semibold overflow-hidden
-                                        ${isActive ? 'bg-[#0066FF] text-white' : 'bg-[#0055CC] text-blue-200'}
+                                        ${isDeleted ? 'bg-[#2a2a35] text-neutral-600' : isActive ? 'bg-[#0066FF] text-white' : 'bg-[#0055CC] text-blue-200'}
                                     `}>
-                                        {convPhoto ? (
-                                            <img src={convPhoto} alt={conv.user.name} className="w-full h-full object-cover" />
+                                        {isDeleted ? (
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M22 10.5h-6m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM4 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 10.374 21c-2.331 0-4.512-.645-6.374-1.766Z" />
+                                            </svg>
+                                        ) : convPhoto ? (
+                                            <img src={convPhoto} alt={displayName} className="w-full h-full object-cover" />
                                         ) : (
                                             getInitial(conv.user.name)
                                         )}
                                     </div>
-                                    {onlineUsers?.has(conv.user._id?.toString?.() || conv.user._id) && (
+                                    {!isDeleted && onlineUsers?.has(conv.user._id?.toString?.() || conv.user._id) && (
                                         <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-[#111118] rounded-full"></span>
                                     )}
                                 </div>
                                 <div className="flex-1 min-w-0 text-left">
                                     <div className="flex items-center justify-between">
-                                        <p className="text-sm font-medium text-neutral-100 truncate">{conv.user.name}</p>
+                                        <p className={`text-sm font-medium truncate ${isDeleted ? 'text-neutral-500 italic' : 'text-neutral-100'}`}>{displayName}</p>
                                         <span className="text-[10px] text-neutral-500 flex-shrink-0 ml-2">
                                             {formatTime(conv.lastMessageTime)}
                                         </span>
