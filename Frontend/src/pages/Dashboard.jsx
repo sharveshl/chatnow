@@ -65,22 +65,55 @@ function Dashboard() {
         const socket = connectSocket(token);
 
         socket.on('online_users', (userIds) => {
-            setOnlineUsers(new Set(userIds));
+            setOnlineUsers(new Set(userIds.map(String)));
         });
 
         socket.on('user_online', ({ userId }) => {
-            setOnlineUsers(prev => new Set([...prev, userId]));
+            setOnlineUsers(prev => new Set([...prev, String(userId)]));
         });
 
         socket.on('user_offline', ({ userId }) => {
             setOnlineUsers(prev => {
                 const next = new Set(prev);
-                next.delete(userId);
+                next.delete(String(userId));
                 return next;
             });
         });
 
-        socket.on('receive_message', () => {
+        socket.on('receive_message', (message) => {
+            // Optimistically update conversations sidebar immediately
+            const senderUsername = message?.sender?.username;
+            const senderId = message?.sender?._id?.toString?.() || message?.sender?._id;
+            if (senderUsername) {
+                setConversations(prev => {
+                    const exists = prev.find(c => c.user.username === senderUsername);
+                    if (exists) {
+                        // Update existing conversation: new lastMessage + increment unread
+                        return prev.map(c =>
+                            c.user.username === senderUsername
+                                ? {
+                                    ...c,
+                                    lastMessage: message.content || '',
+                                    lastMessageTime: message.createdAt || new Date().toISOString(),
+                                    lastMessageSender: senderId,
+                                    unreadCount: (activeChatRef.current?.username === senderUsername) ? 0 : (c.unreadCount || 0) + 1
+                                }
+                                : c
+                        ).sort((a, b) => new Date(b.lastMessageTime) - new Date(a.lastMessageTime));
+                    } else {
+                        // New conversation not yet in list
+                        const newConv = {
+                            user: message.sender,
+                            lastMessage: message.content || '',
+                            lastMessageTime: message.createdAt || new Date().toISOString(),
+                            lastMessageSender: senderId,
+                            unreadCount: (activeChatRef.current?.username === senderUsername) ? 0 : 1
+                        };
+                        return [newConv, ...prev];
+                    }
+                });
+            }
+            // Also sync from server in background for accuracy
             fetchConversations();
         });
 

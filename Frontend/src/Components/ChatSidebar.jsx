@@ -15,7 +15,7 @@ function ChatSidebar({ conversations, activeChat, onSelectChat, currentUser, onN
         const base = backendUrl?.replace(/\/api\/?$/, "") || "";
         return `${base}${photoPath}`;
     };
-    
+
 
     const currentUserPhoto = getPhotoUrl(currentUser?.profilePhoto);
 
@@ -180,7 +180,7 @@ function ChatSidebar({ conversations, activeChat, onSelectChat, currentUser, onN
                                             getInitial(conv.user.name)
                                         )}
                                     </div>
-                                    {onlineUsers?.has(conv.user._id) && (
+                                    {onlineUsers?.has(conv.user._id?.toString?.() || conv.user._id) && (
                                         <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-[#111118] rounded-full"></span>
                                     )}
                                 </div>

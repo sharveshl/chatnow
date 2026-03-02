@@ -127,14 +127,16 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
 
         const handleDelivered = ({ messageId }) => {
             setMessages(prev => prev.map(msg =>
-                msg._id === messageId ? { ...msg, status: 'delivered' } : msg
+                msg._id?.toString() === messageId?.toString() ? { ...msg, status: 'delivered' } : msg
             ));
         };
 
         const handleMessagesRead = ({ readerUsername }) => {
             if (readerUsername === activeChat.username) {
                 setMessages(prev => prev.map(msg => {
-                    const isMine = msg.sender?._id === currentUser?._id || msg.sender?.username === currentUser?.username;
+                    const isMine =
+                        msg.sender?._id?.toString() === currentUser?._id?.toString() ||
+                        msg.sender?.username === currentUser?.username;
                     if (isMine && msg.status !== 'read') {
                         return { ...msg, status: 'read' };
                     }
@@ -282,7 +284,7 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
         return `${base}${photoPath}`;
     };
 
-    const isOnline = activeChat && onlineUsers?.has(activeChat._id);
+    const isOnline = activeChat && onlineUsers?.has(activeChat._id?.toString?.() || activeChat._id);
     const isTyping = activeChat && typingUsers?.has(activeChat.username);
 
     // Empty state
@@ -403,7 +405,10 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
                             <MessageBubble
                                 key={msg._id}
                                 message={msg}
-                                isOwn={msg.sender._id === currentUser?._id || msg.sender.username === currentUser?.username}
+                                isOwn={
+                                    msg.sender?._id?.toString() === currentUser?._id?.toString() ||
+                                    msg.sender?.username === currentUser?.username
+                                }
                             />
                         ))}
                         <div ref={messagesEndRef} />

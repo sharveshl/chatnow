@@ -1,10 +1,10 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/usermodel.js';
 
-const authMiddleware = async (req, res, next) =>{
-    try{
+const authMiddleware = async (req, res, next) => {
+    try {
         const authHeader = req.headers.authorization;
-        if(!authHeader || !authHeader.startsWith('Bearer ')){
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
             res.status(401).json(
                 {
                     message: "No token provided"
@@ -15,16 +15,16 @@ const authMiddleware = async (req, res, next) =>{
         const token = authHeader.split(' ')[1];
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const user = await User.findById(decoded.id).select('-password');
-        if(!user){
-            return req.status(401).json({
-                message: "User not found"
+        if (!user || user.isDeleted) {
+            return res.status(401).json({
+                message: "Account not found or has been deleted"
             });
         }
 
         req.user = user;
         next();
     }
-    catch(err){
+    catch (err) {
         return res.status(401).json({ message: "Invalid or expired token" });
     }
 

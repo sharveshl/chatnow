@@ -14,9 +14,13 @@ export const sendMessage = async (req, res) => {
             return res.status(400).json({ message: "Receiver username and content are required" });
         }
 
-        const receiver = await User.findOne({ username: receiverUsername }).select('_id username name').lean();
+        const receiver = await User.findOne({ username: receiverUsername }).select('_id username name isDeleted').lean();
         if (!receiver) {
             return res.status(404).json({ message: "User not found" });
+        }
+
+        if (receiver.isDeleted) {
+            return res.status(403).json({ message: "This user has deleted their account" });
         }
 
         if (receiver._id.toString() === senderId.toString()) {

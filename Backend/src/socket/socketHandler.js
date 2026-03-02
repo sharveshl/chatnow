@@ -68,9 +68,13 @@ export default function setupSocket(io) {
                     return callback?.({ error: 'Receiver username and content are required' });
                 }
 
-                const receiver = await User.findOne({ username: receiverUsername }).select('_id username name').lean();
+                const receiver = await User.findOne({ username: receiverUsername }).select('_id username name isDeleted').lean();
                 if (!receiver) {
                     return callback?.({ error: 'User not found' });
+                }
+
+                if (receiver.isDeleted) {
+                    return callback?.({ error: 'This user has deleted their account' });
                 }
 
                 if (receiver._id.toString() === userId) {

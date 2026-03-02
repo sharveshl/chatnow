@@ -47,6 +47,7 @@ router.get("/search", authMiddleware, async (req, res) => {
 
     const users = await User.find({
       _id: { $ne: req.user._id },
+      isDeleted: { $ne: true },
       $or: [
         { username: { $regex: q.trim(), $options: "i" } },
         { name: { $regex: q.trim(), $options: "i" } }
@@ -69,7 +70,7 @@ router.get("/profile/:username", authMiddleware, async (req, res) => {
       .select("username name email about profilePhoto createdAt")
       .lean();
 
-    if (!user) {
+    if (!user || user.isDeleted) {
       return res.status(404).json({ message: "User not found" });
     }
 
@@ -112,6 +113,16 @@ router.post("/profile/photo", authMiddleware, upload.single("photo"), async (req
     ).select("-password");
 
     return res.status(200).json(user);
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+});
+
+// Delete own account (soft-delete)
+router.delete("/account", authMiddleware, async (req, res) => {
+  try {
+    await User.findByIdAndUpdate(req.user._id, { isDeleted: true });
+    return res.status(200).json({ message: "Account deleted" });
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
