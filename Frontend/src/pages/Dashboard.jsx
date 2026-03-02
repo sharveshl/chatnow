@@ -217,7 +217,7 @@ function Dashboard() {
     }
 
     return (
-        <div className="h-screen flex flex-col bg-[#0a0a12] overflow-hidden">
+        <div className="h-dvh flex flex-col bg-[#0a0a12] overflow-hidden">
             {/* Top bar */}
             <div className="h-14 bg-[#0a0a12] border-b border-[#1e1e2a] flex items-center justify-between px-4 md:px-5 flex-shrink-0">
                 <div className="flex items-center gap-2.5">

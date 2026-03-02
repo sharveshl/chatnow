@@ -204,10 +204,13 @@ async function deliverPendingMessages(socket, userId, io) {
             status: 'sent'
         })
             .populate('sender', 'username name')
+            .populate('receiver', 'username name')
             .lean();
 
+        if (pendingMessages.length === 0) return;
+
         // Decrypt each pending message
-        pendingMessages = pendingMessages.map(msg => {
+        const decryptedMessages = pendingMessages.map(msg => {
             try {
                 return {
                     ...msg,
@@ -221,17 +224,20 @@ async function deliverPendingMessages(socket, userId, io) {
             }
         });
 
-        if (pendingMessages.length === 0) return;
-
-        const messageIds = pendingMessages.map(m => m._id);
+        const messageIds = decryptedMessages.map(m => m._id);
         await Message.updateMany(
             { _id: { $in: messageIds } },
             { $set: { status: 'delivered' } }
         );
 
+        // Emit each pending message to the receiver
+        for (const msg of decryptedMessages) {
+            socket.emit('receive_message', msg);
+        }
+
         // Notify each sender that their messages were delivered
         const senderGroups = {};
-        for (const msg of pendingMessages) {
+        for (const msg of decryptedMessages) {
             const senderId = msg.sender._id.toString();
             if (!senderGroups[senderId]) {
                 senderGroups[senderId] = [];
