@@ -15,6 +15,8 @@ function GroupChatWindow({ group, currentUser, onGroupUpdated, onLeaveGroup, onD
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [showInfo, setShowInfo] = useState(false);
     const [typingUsers, setTypingUsers] = useState(new Set());
+    const [securityAlert, setSecurityAlert] = useState(null);
+    const [securityWarning, setSecurityWarning] = useState(null);
 
     const messagesEndRef = useRef(null);
     const messagesContainerRef = useRef(null);
@@ -118,9 +120,23 @@ function GroupChatWindow({ group, currentUser, onGroupUpdated, onLeaveGroup, onD
             }
         };
 
+        const handleSecurityWarning = (data) => {
+            if (data.groupId && data.groupId !== group._id?.toString() && data.groupId !== group._id) return;
+            setSecurityWarning(data);
+            setTimeout(() => setSecurityWarning(null), 6000);
+        };
+
+        const handleAccountBanned = (data) => {
+            alert(data.message || 'Your account has been suspended.');
+            localStorage.clear();
+            window.location.href = '/';
+        };
+
         socket.on('group_receive_message', handleGroupMessage);
         socket.on('group_user_typing', handleGroupTyping);
         socket.on('group_user_stopped_typing', handleGroupStopTyping);
+        socket.on('security_warning', handleSecurityWarning);
+        socket.on('account_banned', handleAccountBanned);
 
         // Mark read on open
         socket.emit('group_message_read', { groupId: group._id });
@@ -129,6 +145,8 @@ function GroupChatWindow({ group, currentUser, onGroupUpdated, onLeaveGroup, onD
             socket.off('group_receive_message', handleGroupMessage);
             socket.off('group_user_typing', handleGroupTyping);
             socket.off('group_user_stopped_typing', handleGroupStopTyping);
+            socket.off('security_warning', handleSecurityWarning);
+            socket.off('account_banned', handleAccountBanned);
             Object.values(typingTimeoutsRef.current).forEach(clearTimeout);
             typingTimeoutsRef.current = {};
         };
@@ -195,12 +213,21 @@ function GroupChatWindow({ group, currentUser, onGroupUpdated, onLeaveGroup, onD
         stopTyping();
         setSending(true);
         setNewMessage('');
+        setSecurityAlert(null);
 
         const socket = getSocket();
         if (!socket) { setSending(false); return; }
 
         socket.emit('group_send_message', { groupId: group._id, content }, (response) => {
-            if (response?.message) {
+            if (response?.blocked) {
+                // Message was blocked — show alert, restore text for editing
+                setSecurityAlert({
+                    riskLevel: response.riskLevel,
+                    reasons: response.reasons,
+                    message: response.message
+                });
+                setNewMessage(content);
+            } else if (response?.message) {
                 setMessages(prev => {
                     if (prev.find(m => m._id?.toString() === response.message._id?.toString())) return prev;
                     return [...prev, response.message];
@@ -287,6 +314,46 @@ function GroupChatWindow({ group, currentUser, onGroupUpdated, onLeaveGroup, onD
 
             {/* Message Input */}
             <div className="px-3 md:px-4 py-2 md:py-3 bg-[#111118] border-t border-[#1e1e2a] flex-shrink-0 relative">
+                {/* Security Warning Toast */}
+                {securityWarning && (
+                    <div className="absolute bottom-full left-2 right-2 mb-2 z-50 animate-[slideUp_0.3s_ease-out]">
+                        <div className="bg-orange-500/15 border border-orange-500/30 rounded-xl px-4 py-3 backdrop-blur-sm">
+                            <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-orange-400">⚠️</span>
+                                    <span className="text-sm text-orange-300 font-medium">{securityWarning.message}</span>
+                                </div>
+                                <button onClick={() => setSecurityWarning(null)} className="text-orange-400/60 hover:text-orange-400 text-lg cursor-pointer">×</button>
+                            </div>
+                            {securityWarning.reasons?.length > 0 && (
+                                <p className="text-xs text-orange-400/70 mt-1.5 ml-7">{securityWarning.reasons.join(' • ')}</p>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Security Alert (Blocked Message) */}
+                {securityAlert && (
+                    <div className="mb-2 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3">
+                        <div className="flex items-start justify-between gap-2">
+                            <div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-red-400">🚨</span>
+                                    <span className="text-sm text-red-300 font-semibold">Message Blocked</span>
+                                </div>
+                                <p className="text-xs text-red-400/80 mt-1.5 ml-7">{securityAlert.message}</p>
+                                {securityAlert.reasons?.length > 0 && (
+                                    <ul className="text-xs text-red-400/70 mt-1 ml-7 list-disc list-inside">
+                                        {securityAlert.reasons.map((r, i) => <li key={i}>{r}</li>)}
+                                    </ul>
+                                )}
+                                <p className="text-xs text-neutral-500 mt-2 ml-7">Modify your message and try again.</p>
+                            </div>
+                            <button onClick={() => setSecurityAlert(null)} className="text-red-400/60 hover:text-red-400 text-lg cursor-pointer flex-shrink-0">×</button>
+                        </div>
+                    </div>
+                )}
+
                 {showEmojiPicker && (
                     <div ref={emojiPickerRef} className="absolute bottom-full left-0 right-0 md:left-auto md:right-auto mb-2 mx-2 md:mx-0 z-50">
                         <EmojiPicker
@@ -313,7 +380,11 @@ function GroupChatWindow({ group, currentUser, onGroupUpdated, onLeaveGroup, onD
                         onChange={handleInputChange}
                         onFocus={() => setShowEmojiPicker(false)}
                         placeholder="Type a message…"
-                        className="flex-1 px-3 md:px-4 py-2.5 md:py-3 bg-[#1a1a25] border border-[#2a2a35] rounded-xl text-sm text-neutral-100 placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-[#0084FF] focus:border-transparent"
+                        className={`flex-1 px-3 md:px-4 py-2.5 md:py-3 bg-[#1a1a25] border rounded-xl text-sm text-neutral-100 placeholder-neutral-500 focus:outline-none focus:ring-2 focus:border-transparent
+                            ${securityAlert
+                                ? 'border-red-500/40 focus:ring-red-500/50'
+                                : 'border-[#2a2a35] focus:ring-[#0084FF]'
+                            }`}
                     />
                     <button type="submit" disabled={!newMessage.trim() || sending}
                         className="w-10 h-10 md:w-11 md:h-11 bg-[#0084FF] text-white rounded-xl flex items-center justify-center hover:bg-[#0070DD] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer flex-shrink-0">
@@ -352,6 +423,13 @@ function GroupChatWindow({ group, currentUser, onGroupUpdated, onLeaveGroup, onD
 
 // Render messages with sender name for non-own messages in groups
 function renderMessages(messages, currentUser, getInitial, getPhotoUrl, formatTime) {
+    const riskColors = {
+        low: { bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', text: 'text-yellow-400', icon: '⚠️' },
+        medium: { bg: 'bg-orange-500/10', border: 'border-orange-500/30', text: 'text-orange-400', icon: '⚠️' },
+        high: { bg: 'bg-red-500/10', border: 'border-red-500/30', text: 'text-red-400', icon: '🛑' },
+        critical: { bg: 'bg-red-600/15', border: 'border-red-600/40', text: 'text-red-500', icon: '🚨' },
+    };
+
     return messages.map((msg, idx) => {
         const isOwn = msg.sender?._id?.toString() === currentUser?._id?.toString() ||
             msg.sender?.username === currentUser?.username;
@@ -362,6 +440,9 @@ function renderMessages(messages, currentUser, getInitial, getPhotoUrl, formatTi
         // Group consecutive same-sender messages
         const prevMsg = messages[idx - 1];
         const isSameSender = prevMsg && prevMsg.sender?.username === msg.sender?.username;
+
+        const hasWarning = msg.riskLevel && msg.riskLevel !== 'none';
+        const riskStyle = riskColors[msg.riskLevel] || riskColors.medium;
 
         return (
             <div key={msg._id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} ${isSameSender ? 'mt-0.5' : 'mt-2'}`}>
@@ -392,6 +473,21 @@ function renderMessages(messages, currentUser, getInitial, getPhotoUrl, formatTi
                             <span className="text-[10px]">{formatTime(msg.createdAt)}</span>
                         </div>
                     </div>
+
+                    {/* Security Warning Badge */}
+                    {hasWarning && (
+                        <div className={`mt-1 px-3 py-1.5 rounded-lg ${riskStyle.bg} border ${riskStyle.border} ${isOwn ? 'ml-auto' : ''}`}>
+                            <div className={`flex items-center gap-1.5 ${riskStyle.text}`}>
+                                <span className="text-xs">{riskStyle.icon}</span>
+                                <span className="text-[10px] font-semibold uppercase tracking-wide">{msg.riskLevel} risk</span>
+                            </div>
+                            {msg.reasons?.length > 0 && (
+                                <p className={`text-[10px] mt-0.5 ${riskStyle.text} opacity-80 leading-tight`}>
+                                    {msg.reasons.slice(0, 2).join(' • ')}
+                                </p>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
         );

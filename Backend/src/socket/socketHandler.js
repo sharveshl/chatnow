@@ -4,6 +4,7 @@ import Message from '../models/messagemodel.js';
 import Group from '../models/groupmodel.js';
 import GroupMessage from '../models/groupmessagemodel.js';
 import { encryptMessage, decryptMessage } from '../utils/encryption.js';
+import { analyzeMessage, updateUserRiskScore } from '../utils/securityService.js';
 
 // Map of userId (string) -> socketId
 const onlineUsers = new Map();
@@ -34,6 +35,10 @@ export default function setupSocket(io) {
             const user = await User.findById(decoded.id).select('-password').lean();
             if (!user) {
                 return next(new Error('User not found'));
+            }
+
+            if (user.isBanned) {
+                return next(new Error('Your account has been suspended due to repeated security violations.'));
             }
 
             socket.user = user;
@@ -93,6 +98,38 @@ export default function setupSocket(io) {
                     return callback?.({ error: 'Cannot send message to yourself' });
                 }
 
+                // ── SECURITY CHECK: Analyze message before encryption ──
+                const analysis = await analyzeMessage(content.trim(), userId);
+
+                // Update sender's cumulative risk score
+                const { wasBanned } = await updateUserRiskScore(userId, analysis.riskScore);
+
+                if (wasBanned) {
+                    socket.emit('account_banned', {
+                        message: 'Your account has been suspended due to repeated security violations. Risk limit exceeded.'
+                    });
+                    callback?.({ error: 'Your account has been suspended due to security violations.' });
+                    socket.disconnect(true);
+                    return;
+                }
+
+                // CRITICAL: Block the message entirely
+                if (analysis.action === 'block') {
+                    socket.emit('security_alert', {
+                        type: 'blocked',
+                        riskLevel: analysis.riskLevel,
+                        reasons: analysis.reasons,
+                        originalContent: content.trim(),
+                        message: 'This message was blocked due to critical security risks. Please modify your message.'
+                    });
+                    return callback?.({
+                        blocked: true,
+                        riskLevel: analysis.riskLevel,
+                        reasons: analysis.reasons,
+                        message: 'Message blocked: Critical security threat detected. Please modify your message.'
+                    });
+                }
+
                 // Encrypt before saving
                 const { encrypted, iv, authTag } = encryptMessage(content.trim());
 
@@ -124,11 +161,34 @@ export default function setupSocket(io) {
                     content: content.trim(),
                     status: message.status,
                     createdAt: message.createdAt,
-                    updatedAt: message.updatedAt
+                    updatedAt: message.updatedAt,
+                    // Attach risk info if not safe
+                    ...(analysis.action === 'warn' && {
+                        riskLevel: analysis.riskLevel,
+                        reasons: analysis.reasons
+                    })
                 };
 
                 // ACK to sender
                 callback?.({ message: populated });
+
+                // WARN: Notify both sender and receiver about the risk
+                if (analysis.action === 'warn') {
+                    const warningPayload = {
+                        type: 'warning',
+                        messageId: message._id.toString(),
+                        riskLevel: analysis.riskLevel,
+                        reasons: analysis.reasons,
+                        senderUsername: socket.user.username,
+                        message: `This message has security vulnerabilities (${analysis.riskLevel} risk).`
+                    };
+                    socket.emit('security_warning', warningPayload);
+
+                    const receiverSocketId = onlineUsers.get(receiver._id.toString());
+                    if (receiverSocketId) {
+                        io.to(receiverSocketId).emit('security_warning', warningPayload);
+                    }
+                }
 
                 // Check if receiver is online
                 const receiverSocketId = onlineUsers.get(receiver._id.toString());
@@ -218,6 +278,38 @@ export default function setupSocket(io) {
                 const isMember = group.members.some(m => m.toString() === userId);
                 if (!isMember) return callback?.({ error: 'Not a member of this group' });
 
+                // ── SECURITY CHECK: Analyze message before encryption ──
+                const analysis = await analyzeMessage(content.trim(), userId);
+
+                // Update sender's cumulative risk score
+                const { wasBanned } = await updateUserRiskScore(userId, analysis.riskScore);
+
+                if (wasBanned) {
+                    socket.emit('account_banned', {
+                        message: 'Your account has been suspended due to repeated security violations. Risk limit exceeded.'
+                    });
+                    callback?.({ error: 'Your account has been suspended due to security violations.' });
+                    socket.disconnect(true);
+                    return;
+                }
+
+                // CRITICAL: Block the message entirely
+                if (analysis.action === 'block') {
+                    socket.emit('security_alert', {
+                        type: 'blocked',
+                        riskLevel: analysis.riskLevel,
+                        reasons: analysis.reasons,
+                        originalContent: content.trim(),
+                        message: 'This message was blocked due to critical security risks. Please modify your message.'
+                    });
+                    return callback?.({
+                        blocked: true,
+                        riskLevel: analysis.riskLevel,
+                        reasons: analysis.reasons,
+                        message: 'Message blocked: Critical security threat detected. Please modify your message.'
+                    });
+                }
+
                 const { encrypted, iv, authTag } = encryptMessage(content.trim());
 
                 const message = new GroupMessage({
@@ -242,11 +334,31 @@ export default function setupSocket(io) {
                     content: content.trim(),
                     readBy: [socket.user._id],
                     createdAt: message.createdAt,
-                    updatedAt: message.updatedAt
+                    updatedAt: message.updatedAt,
+                    // Attach risk info if not safe
+                    ...(analysis.action === 'warn' && {
+                        riskLevel: analysis.riskLevel,
+                        reasons: analysis.reasons
+                    })
                 };
 
                 // ACK to sender
                 callback?.({ message: outgoing });
+
+                // WARN: Notify all group members about the risk
+                if (analysis.action === 'warn') {
+                    const warningPayload = {
+                        type: 'warning',
+                        messageId: message._id.toString(),
+                        groupId,
+                        riskLevel: analysis.riskLevel,
+                        reasons: analysis.reasons,
+                        senderUsername: socket.user.username,
+                        message: `This message has security vulnerabilities (${analysis.riskLevel} risk).`
+                    };
+                    socket.emit('security_warning', warningPayload);
+                    socket.to(`group:${groupId}`).emit('security_warning', warningPayload);
+                }
 
                 // Broadcast to all group members in the room (excluding sender)
                 socket.to(`group:${groupId}`).emit('group_receive_message', outgoing);

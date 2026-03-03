@@ -70,6 +70,13 @@ export const loginUser = async (req, res) => {
             });
         }
 
+        // Block banned accounts (risk limit exceeded)
+        if (user.isBanned) {
+            return res.status(403).json({
+                message: "Your account has been suspended due to repeated security violations. Risk limit exceeded. You cannot log in to this account."
+            });
+        }
+
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
             return res.status(400).json({ message: 'Invalid password' })

@@ -4,6 +4,18 @@ function MessageBubble({ message, isOwn }) {
         minute: '2-digit'
     });
 
+    const riskLevel = message.riskLevel;
+    const hasWarning = riskLevel && riskLevel !== 'none';
+
+    const riskColors = {
+        low: { bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', text: 'text-yellow-400', icon: '⚠️' },
+        medium: { bg: 'bg-orange-500/10', border: 'border-orange-500/30', text: 'text-orange-400', icon: '⚠️' },
+        high: { bg: 'bg-red-500/10', border: 'border-red-500/30', text: 'text-red-400', icon: '🛑' },
+        critical: { bg: 'bg-red-600/15', border: 'border-red-600/40', text: 'text-red-500', icon: '🚨' },
+    };
+
+    const riskStyle = riskColors[riskLevel] || riskColors.medium;
+
     const renderStatus = () => {
         if (!isOwn) return null;
 
@@ -42,20 +54,37 @@ function MessageBubble({ message, isOwn }) {
 
     return (
         <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-2`}>
-            <div className={`
-                max-w-[70%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed
-                ${isOwn
-                    ? 'bg-[#0084FF] text-white rounded-br-md'
-                    : 'bg-[#2a2a35] text-neutral-100 rounded-bl-md'
-                }
-            `}>
-                <p className="break-words">{message.content}</p>
-                <div className={`flex items-center justify-end gap-0.5 mt-1
-                    ${isOwn ? 'text-blue-200/70' : 'text-neutral-500'}
+            <div className="max-w-[70%]">
+                <div className={`
+                    px-4 py-2.5 rounded-2xl text-sm leading-relaxed
+                    ${isOwn
+                        ? 'bg-[#0084FF] text-white rounded-br-md'
+                        : 'bg-[#2a2a35] text-neutral-100 rounded-bl-md'
+                    }
                 `}>
-                    <span className="text-[10px]">{time}</span>
-                    {renderStatus()}
+                    <p className="break-words">{message.content}</p>
+                    <div className={`flex items-center justify-end gap-0.5 mt-1
+                        ${isOwn ? 'text-blue-200/70' : 'text-neutral-500'}
+                    `}>
+                        <span className="text-[10px]">{time}</span>
+                        {renderStatus()}
+                    </div>
                 </div>
+
+                {/* Security Warning Badge */}
+                {hasWarning && (
+                    <div className={`mt-1 px-3 py-1.5 rounded-lg ${riskStyle.bg} border ${riskStyle.border} ${isOwn ? 'ml-auto' : ''}`}>
+                        <div className={`flex items-center gap-1.5 ${riskStyle.text}`}>
+                            <span className="text-xs">{riskStyle.icon}</span>
+                            <span className="text-[10px] font-semibold uppercase tracking-wide">{riskLevel} risk</span>
+                        </div>
+                        {message.reasons?.length > 0 && (
+                            <p className={`text-[10px] mt-0.5 ${riskStyle.text} opacity-80 leading-tight`}>
+                                {message.reasons.slice(0, 2).join(' • ')}
+                            </p>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );

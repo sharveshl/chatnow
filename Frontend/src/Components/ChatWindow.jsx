@@ -17,6 +17,8 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
     const [loading, setLoading] = useState(false);
     const [sending, setSending] = useState(false);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [securityAlert, setSecurityAlert] = useState(null);
+    const [securityWarning, setSecurityWarning] = useState(null);
     const [hasMore, setHasMore] = useState(false);
     const [loadingMore, setLoadingMore] = useState(false);
     const messagesEndRef = useRef(null);
@@ -146,14 +148,29 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
             }
         };
 
+        const handleSecurityWarning = (data) => {
+            setSecurityWarning(data);
+            setTimeout(() => setSecurityWarning(null), 6000);
+        };
+
+        const handleAccountBanned = (data) => {
+            alert(data.message || 'Your account has been suspended.');
+            localStorage.clear();
+            window.location.href = '/';
+        };
+
         socket.on('receive_message', handleReceiveMessage);
         socket.on('message_delivered', handleDelivered);
         socket.on('messages_read', handleMessagesRead);
+        socket.on('security_warning', handleSecurityWarning);
+        socket.on('account_banned', handleAccountBanned);
 
         return () => {
             socket.off('receive_message', handleReceiveMessage);
             socket.off('message_delivered', handleDelivered);
             socket.off('messages_read', handleMessagesRead);
+            socket.off('security_warning', handleSecurityWarning);
+            socket.off('account_banned', handleAccountBanned);
         };
     }, [activeChat?.username, currentUser]);
 
@@ -259,11 +276,23 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
         setSending(true);
         setShowEmojiPicker(false);
 
+        const messageToSend = newMessage.trim();
+        setNewMessage("");
+        setSecurityAlert(null);
+
         socket.emit('send_message', {
             receiverUsername: activeChat.username,
-            content: newMessage.trim()
+            content: messageToSend
         }, (response) => {
-            if (response?.error) {
+            if (response?.blocked) {
+                // Message was blocked — show alert, restore text for editing
+                setSecurityAlert({
+                    riskLevel: response.riskLevel,
+                    reasons: response.reasons,
+                    message: response.message
+                });
+                setNewMessage(messageToSend);
+            } else if (response?.error) {
                 console.error('Send error:', response.error);
             } else if (response?.message) {
                 setMessages(prev => [...prev, response.message]);
@@ -272,8 +301,6 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
             }
             setSending(false);
         });
-
-        setNewMessage("");
     };
 
     const getInitial = (name) => name ? name.charAt(0).toUpperCase() : "?";
@@ -438,6 +465,46 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
                 </div>
             ) : (
                 <div className="px-3 md:px-4 py-2 md:py-3 bg-[#111118] border-t border-[#1e1e2a] flex-shrink-0 relative">
+                    {/* Security Warning Toast */}
+                    {securityWarning && (
+                        <div className="absolute bottom-full left-2 right-2 mb-2 z-50 animate-[slideUp_0.3s_ease-out]">
+                            <div className="bg-orange-500/15 border border-orange-500/30 rounded-xl px-4 py-3 backdrop-blur-sm">
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-orange-400">⚠️</span>
+                                        <span className="text-sm text-orange-300 font-medium">{securityWarning.message}</span>
+                                    </div>
+                                    <button onClick={() => setSecurityWarning(null)} className="text-orange-400/60 hover:text-orange-400 text-lg cursor-pointer">×</button>
+                                </div>
+                                {securityWarning.reasons?.length > 0 && (
+                                    <p className="text-xs text-orange-400/70 mt-1.5 ml-7">{securityWarning.reasons.join(' • ')}</p>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Security Alert (Blocked Message) */}
+                    {securityAlert && (
+                        <div className="mb-2 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3">
+                            <div className="flex items-start justify-between gap-2">
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-red-400">🚨</span>
+                                        <span className="text-sm text-red-300 font-semibold">Message Blocked</span>
+                                    </div>
+                                    <p className="text-xs text-red-400/80 mt-1.5 ml-7">{securityAlert.message}</p>
+                                    {securityAlert.reasons?.length > 0 && (
+                                        <ul className="text-xs text-red-400/70 mt-1 ml-7 list-disc list-inside">
+                                            {securityAlert.reasons.map((r, i) => <li key={i}>{r}</li>)}
+                                        </ul>
+                                    )}
+                                    <p className="text-xs text-neutral-500 mt-2 ml-7">Modify your message and try again.</p>
+                                </div>
+                                <button onClick={() => setSecurityAlert(null)} className="text-red-400/60 hover:text-red-400 text-lg cursor-pointer flex-shrink-0">×</button>
+                            </div>
+                        </div>
+                    )}
+
                     {showEmojiPicker && (
                         <div
                             ref={emojiPickerRef}
@@ -478,9 +545,13 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
                             onChange={handleInputChange}
                             onFocus={() => setShowEmojiPicker(false)}
                             placeholder="Type a message..."
-                            className="flex-1 px-3 md:px-4 py-2.5 md:py-3 bg-[#1a1a25] border border-[#2a2a35] rounded-xl text-sm
+                            className={`flex-1 px-3 md:px-4 py-2.5 md:py-3 bg-[#1a1a25] border rounded-xl text-sm
                             text-neutral-100 placeholder-neutral-500
-                            focus:outline-none focus:ring-2 focus:ring-[#0084FF] focus:border-transparent"
+                            focus:outline-none focus:ring-2 focus:border-transparent
+                            ${securityAlert
+                                    ? 'border-red-500/40 focus:ring-red-500/50'
+                                    : 'border-[#2a2a35] focus:ring-[#0084FF]'
+                                }`}
                         />
 
                         <button

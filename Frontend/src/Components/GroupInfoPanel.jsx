@@ -7,7 +7,7 @@ function GroupInfoPanel({ group, currentUser, onClose, onGroupUpdated, onLeaveGr
     const [editDesc, setEditDesc] = useState(group?.description || '');
     const [saving, setSaving] = useState(false);
     const [uploading, setUploading] = useState(false);
-    const [addSearch, setAddSearch] = useState('');
+    const [addSearch, setAddSearch] = useState('');j
     const [addResults, setAddResults] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
     const [confirmLeave, setConfirmLeave] = useState(false);
