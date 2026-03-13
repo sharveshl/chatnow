@@ -3,11 +3,10 @@ import authMiddleware from '../middlewares/authmiddleware.js';
 import User from '../models/usermodel.js';
 
 const router = express.Router();
-const ADMIN_EMAIL = 'loganathansharvesh14@gmail.com';
 
 // Admin-only middleware
 const adminOnly = (req, res, next) => {
-    if (req.user.email !== ADMIN_EMAIL) {
+    if (!req.user.isAdmin) {
         return res.status(403).json({ message: 'Admin access required' });
     }
     next();
@@ -15,7 +14,7 @@ const adminOnly = (req, res, next) => {
 
 // Check if current user is admin
 router.get('/check', authMiddleware, (req, res) => {
-    return res.status(200).json({ isAdmin: req.user.email === ADMIN_EMAIL });
+    return res.status(200).json({ isAdmin: !!req.user.isAdmin });
 });
 
 // Get all flagged/banned users

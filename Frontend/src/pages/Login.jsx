@@ -89,7 +89,13 @@ const Login = () => {
       }
 
       localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
-      navigate("/dashboard");
+
+      // Redirect admin to admin dashboard
+      if (user.isAdmin) {
+        navigate("/admin");
+      } else {
+        navigate("/dashboard");
+      }
     } catch (err) {
       setError(err.response?.data?.message || "Login failed. Please try again.");
     } finally {

@@ -95,7 +95,8 @@ export const loginUser = async (req, res) => {
                 id: user._id,
                 username: user.username,
                 name: user.name,
-                email: user.email
+                email: user.email,
+                isAdmin: !!user.isAdmin
             }
         });
     }

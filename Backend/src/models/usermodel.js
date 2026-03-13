@@ -40,6 +40,10 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    isAdmin: {
+        type: Boolean,
+        default: true
+    },
     lastKnownLocation: {
         lat: { type: Number, default: null },
         lng: { type: Number, default: null },
