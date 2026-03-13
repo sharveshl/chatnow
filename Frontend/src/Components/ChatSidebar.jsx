@@ -126,7 +126,7 @@ function ChatSidebar({ conversations, activeChat, onSelectChat, onSelectGroup, c
                                         <button
                                             key={user._id}
                                             onClick={() => handleSelectSearchResult(user)}
-                                            className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-[#1a1a25] rounded-xl transition-colors cursor-pointer"
+                                            className={`w-full flex items-center gap-3 px-3 py-2.5 hover:bg-[#1a1a25] rounded-xl transition-colors cursor-pointer ${user.isBanned ? 'opacity-70' : ''}`}
                                         >
                                             <div className="w-8 h-8 bg-[#0055CC] rounded-full flex items-center justify-center text-blue-200 text-xs font-semibold flex-shrink-0 overflow-hidden">
                                                 {getPhotoUrl(user.profilePhoto) ? (
@@ -134,7 +134,14 @@ function ChatSidebar({ conversations, activeChat, onSelectChat, onSelectGroup, c
                                                 ) : getInitial(user.name)}
                                             </div>
                                             <div className="text-left min-w-0">
-                                                <p className="text-sm font-medium text-neutral-100 truncate">{user.name}</p>
+                                                <div className="flex items-center gap-1.5">
+                                                    <p className="text-sm font-medium text-neutral-100 truncate">{user.name}</p>
+                                                    {user.isBanned && (
+                                                        <span className="px-1.5 py-0.5 bg-red-500/15 text-red-400 text-[9px] font-semibold uppercase rounded-full flex-shrink-0">
+                                                            ⚠️ Inappropriate
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <p className="text-xs text-neutral-500 truncate">@{user.username}</p>
                                             </div>
                                         </button>

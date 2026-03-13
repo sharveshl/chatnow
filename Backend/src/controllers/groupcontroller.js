@@ -143,10 +143,11 @@ export const getGroupMessages = async (req, res) => {
                 return {
                     ...msg,
                     content: decryptMessage(msg.encrypted, msg.iv, msg.authTag),
+                    isScam: msg.isScam,
                     encrypted: undefined, iv: undefined, authTag: undefined
                 };
             } catch {
-                return { ...msg, content: '[Unable to decrypt]', encrypted: undefined, iv: undefined, authTag: undefined };
+                return { ...msg, content: '[Unable to decrypt]', isScam: msg.isScam, encrypted: undefined, iv: undefined, authTag: undefined };
             }
         });
 

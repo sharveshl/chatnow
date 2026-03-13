@@ -130,6 +130,9 @@ export default function setupSocket(io) {
                     });
                 }
 
+                // Determine if message is scam based on security analysis
+                const isScam = (analysis.riskLevel === 'high' || analysis.riskLevel === 'critical');
+
                 // Encrypt before saving
                 const { encrypted, iv, authTag } = encryptMessage(content.trim());
 
@@ -140,7 +143,8 @@ export default function setupSocket(io) {
                     encrypted,
                     iv,
                     authTag,
-                    status: 'sent'
+                    status: 'sent',
+                    isScam
                 });
 
                 await message.save();
@@ -160,6 +164,7 @@ export default function setupSocket(io) {
                     },
                     content: content.trim(),
                     status: message.status,
+                    isScam: message.isScam,
                     createdAt: message.createdAt,
                     updatedAt: message.updatedAt,
                     // Attach risk info if not safe
@@ -310,6 +315,9 @@ export default function setupSocket(io) {
                     });
                 }
 
+                // Determine if message is scam based on security analysis
+                const isScam = (analysis.riskLevel === 'high' || analysis.riskLevel === 'critical');
+
                 const { encrypted, iv, authTag } = encryptMessage(content.trim());
 
                 const message = new GroupMessage({
@@ -318,7 +326,8 @@ export default function setupSocket(io) {
                     encrypted,
                     iv,
                     authTag,
-                    readBy: [socket.user._id]
+                    readBy: [socket.user._id],
+                    isScam
                 });
 
                 await message.save();
@@ -333,6 +342,7 @@ export default function setupSocket(io) {
                     },
                     content: content.trim(),
                     readBy: [socket.user._id],
+                    isScam: message.isScam,
                     createdAt: message.createdAt,
                     updatedAt: message.updatedAt,
                     // Attach risk info if not safe
@@ -441,12 +451,13 @@ async function deliverPendingMessages(socket, userId, io) {
                 return {
                     ...msg,
                     content: decryptMessage(msg.encrypted, msg.iv, msg.authTag),
+                    isScam: msg.isScam,
                     encrypted: undefined,
                     iv: undefined,
                     authTag: undefined
                 };
             } catch {
-                return { ...msg, content: '[Unable to decrypt]', encrypted: undefined, iv: undefined, authTag: undefined };
+                return { ...msg, content: '[Unable to decrypt]', isScam: msg.isScam, encrypted: undefined, iv: undefined, authTag: undefined };
             }
         });
 

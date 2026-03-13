@@ -85,6 +85,19 @@ function MessageBubble({ message, isOwn }) {
                         )}
                     </div>
                 )}
+
+                {/* Scam Detection Badge */}
+                {message.isScam && (
+                    <div className={`mt-1 px-3 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/30 ${isOwn ? 'ml-auto' : ''}`}>
+                        <div className="flex items-center gap-1.5 text-orange-400">
+                            <span className="text-xs">🛡️</span>
+                            <span className="text-[10px] font-semibold uppercase tracking-wide">Potential Scam</span>
+                        </div>
+                        <p className="text-[10px] mt-0.5 text-orange-400 opacity-80 leading-tight">
+                            This message was flagged by AI scam detection
+                        </p>
+                    </div>
+                )}
             </div>
         </div>
     );

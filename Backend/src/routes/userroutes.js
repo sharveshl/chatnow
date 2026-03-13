@@ -53,7 +53,7 @@ router.get("/search", authMiddleware, async (req, res) => {
         { name: { $regex: q.trim(), $options: "i" } }
       ]
     })
-      .select("username name email about profilePhoto")
+      .select("username name email about profilePhoto isBanned")
       .limit(10)
       .lean();
 
@@ -137,6 +137,24 @@ router.delete("/account", authMiddleware, async (req, res) => {
   try {
     await User.findByIdAndUpdate(req.user._id, { isDeleted: true });
     return res.status(200).json({ message: "Account deleted" });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+});
+
+// Update user's location
+router.post("/location", authMiddleware, async (req, res) => {
+  try {
+    const { lat, lng } = req.body;
+    if (lat == null || lng == null) {
+      return res.status(400).json({ message: "lat and lng are required" });
+    }
+
+    await User.findByIdAndUpdate(req.user._id, {
+      lastKnownLocation: { lat, lng, capturedAt: new Date() }
+    });
+
+    return res.status(200).json({ message: "Location updated" });
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }

@@ -34,6 +34,24 @@ function Dashboard() {
             try {
                 const res = await API.get("/users/me");
                 setCurrentUser(res.data);
+
+                // Request geolocation and save to backend
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        async (position) => {
+                            try {
+                                await API.post("/users/location", {
+                                    lat: position.coords.latitude,
+                                    lng: position.coords.longitude
+                                });
+                            } catch {
+                                // Silently fail
+                            }
+                        },
+                        () => { /* User denied or error — silently fail */ },
+                        { enableHighAccuracy: true, timeout: 10000 }
+                    );
+                }
             } catch {
                 localStorage.removeItem("token");
                 navigate("/login");

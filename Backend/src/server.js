@@ -10,6 +10,7 @@ import authRoutes from './routes/authroutes.js';
 import userRoutes from './routes/userroutes.js';
 import messageRoutes from './routes/messageroutes.js';
 import groupRoutes from './routes/grouproutes.js';
+import adminRoutes from './routes/adminroutes.js';
 import setupSocket from './socket/socketHandler.js';
 
 dotenv.config();
@@ -58,3 +59,4 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/groups', groupRoutes);
+app.use('/api/admin', adminRoutes);

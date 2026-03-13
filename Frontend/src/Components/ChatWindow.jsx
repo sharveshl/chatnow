@@ -523,53 +523,65 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
                         </div>
                     )}
 
-                    <form onSubmit={handleSend} className="flex items-center gap-1.5 md:gap-2">
-                        <button
-                            type="button"
-                            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                            className={`w-10 h-10 md:w-11 md:h-11 flex items-center justify-center rounded-xl transition-all cursor-pointer flex-shrink-0
-                            ${showEmojiPicker
-                                    ? 'bg-[#0084FF]/20 text-blue-400'
-                                    : 'text-neutral-500 hover:text-neutral-300 hover:bg-[#1a1a25]'
-                                }`}
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 md:w-6 md:h-6">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.182 15.182a4.5 4.5 0 0 1-6.364 0M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75Zm-.375 0h.008v.015h-.008V9.75Zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75Zm-.375 0h.008v.015h-.008V9.75Z" />
+                    {activeChat?.isBanned ? (
+                        <div className="flex items-center gap-3 px-4 py-4 bg-red-500/10 border border-red-500/20 rounded-xl">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-red-400 flex-shrink-0">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
                             </svg>
-                        </button>
+                            <div>
+                                <p className="text-sm font-semibold text-red-400">Inappropriate Account</p>
+                                <p className="text-xs text-red-400/70 mt-0.5">This account has been flagged as inappropriate. You cannot send messages to this user.</p>
+                            </div>
+                        </div>
+                    ) : (
+                        <form onSubmit={handleSend} className="flex items-center gap-1.5 md:gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                                className={`w-10 h-10 md:w-11 md:h-11 flex items-center justify-center rounded-xl transition-all cursor-pointer flex-shrink-0
+                            ${showEmojiPicker
+                                        ? 'bg-[#0084FF]/20 text-blue-400'
+                                        : 'text-neutral-500 hover:text-neutral-300 hover:bg-[#1a1a25]'
+                                    }`}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 md:w-6 md:h-6">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.182 15.182a4.5 4.5 0 0 1-6.364 0M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75Zm-.375 0h.008v.015h-.008V9.75Zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75Zm-.375 0h.008v.015h-.008V9.75Z" />
+                                </svg>
+                            </button>
 
-                        <input
-                            ref={inputRef}
-                            type="text"
-                            value={newMessage}
-                            onChange={handleInputChange}
-                            onFocus={() => setShowEmojiPicker(false)}
-                            placeholder="Type a message..."
-                            className={`flex-1 px-3 md:px-4 py-2.5 md:py-3 bg-[#1a1a25] border rounded-xl text-sm
+                            <input
+                                ref={inputRef}
+                                type="text"
+                                value={newMessage}
+                                onChange={handleInputChange}
+                                onFocus={() => setShowEmojiPicker(false)}
+                                placeholder="Type a message..."
+                                className={`flex-1 px-3 md:px-4 py-2.5 md:py-3 bg-[#1a1a25] border rounded-xl text-sm
                             text-neutral-100 placeholder-neutral-500
                             focus:outline-none focus:ring-2 focus:border-transparent
                             ${securityAlert
-                                    ? 'border-red-500/40 focus:ring-red-500/50'
-                                    : 'border-[#2a2a35] focus:ring-[#0084FF]'
-                                }`}
-                        />
+                                        ? 'border-red-500/40 focus:ring-red-500/50'
+                                        : 'border-[#2a2a35] focus:ring-[#0084FF]'
+                                    }`}
+                            />
 
-                        <button
-                            type="submit"
-                            disabled={!newMessage.trim() || sending}
-                            className="w-10 h-10 md:w-11 md:h-11 bg-[#0084FF] text-white rounded-xl flex items-center justify-center
+                            <button
+                                type="submit"
+                                disabled={!newMessage.trim() || sending}
+                                className="w-10 h-10 md:w-11 md:h-11 bg-[#0084FF] text-white rounded-xl flex items-center justify-center
                             hover:bg-[#0070DD] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed
                             transition-all cursor-pointer flex-shrink-0"
-                        >
-                            {sending ? (
-                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                            ) : (
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
-                                </svg>
-                            )}
-                        </button>
-                    </form>
+                            >
+                                {sending ? (
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                ) : (
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
+                                    </svg>
+                                )}
+                            </button>
+                        </form>
+                    )}
                 </div>
             )}
         </div>

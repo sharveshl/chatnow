@@ -26,7 +26,11 @@ const groupMessageSchema = new mongoose.Schema({
     readBy: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
-    }]
+    }],
+    isScam: {
+        type: Boolean,
+        default: false
+    }
 }, { timestamps: true });
 
 groupMessageSchema.index({ group: 1, createdAt: -1 });

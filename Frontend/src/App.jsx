@@ -5,6 +5,7 @@ import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
 import Profile from './Components/Profile';
 import Welcome from "./pages/Welcome";
+import AdminDashboard from "./pages/AdminDashboard";
 import SplashScreen from "./Components/SplashScreen";
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/login" element={<Login />} />
           <Route path='/dashboard' element={<Dashboard />} />
+          <Route path='/admin' element={<AdminDashboard />} />
           <Route path='/profile' element={<Profile />} />
         </Routes>
       </BrowserRouter>

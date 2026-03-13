@@ -40,6 +40,11 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    lastKnownLocation: {
+        lat: { type: Number, default: null },
+        lng: { type: Number, default: null },
+        capturedAt: { type: Date, default: null }
+    },
 },
     {
         timestamps: true
