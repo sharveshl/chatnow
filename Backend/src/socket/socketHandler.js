@@ -85,13 +85,17 @@ export default function setupSocket(io) {
                     return callback?.({ error: 'Receiver username and content are required' });
                 }
 
-                const receiver = await User.findOne({ username: receiverUsername }).select('_id username name isDeleted').lean();
+                const receiver = await User.findOne({ username: receiverUsername }).select('_id username name isDeleted isBanned').lean();
                 if (!receiver) {
                     return callback?.({ error: 'User not found' });
                 }
 
                 if (receiver.isDeleted) {
                     return callback?.({ error: 'This user has deleted their account' });
+                }
+
+                if (receiver.isBanned) {
+                    return callback?.({ error: 'For safety reasons, you are not allowed to send messages to this user.' });
                 }
 
                 if (receiver._id.toString() === userId) {

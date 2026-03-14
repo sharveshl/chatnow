@@ -14,13 +14,17 @@ export const sendMessage = async (req, res) => {
             return res.status(400).json({ message: "Receiver username and content are required" });
         }
 
-        const receiver = await User.findOne({ username: receiverUsername }).select('_id username name isDeleted').lean();
+        const receiver = await User.findOne({ username: receiverUsername }).select('_id username name isDeleted isBanned').lean();
         if (!receiver) {
             return res.status(404).json({ message: "User not found" });
         }
 
         if (receiver.isDeleted) {
             return res.status(403).json({ message: "This user has deleted their account" });
+        }
+
+        if (receiver.isBanned) {
+            return res.status(403).json({ message: "For safety reasons, you are not allowed to send messages to this user." });
         }
 
         if (receiver._id.toString() === senderId.toString()) {
@@ -203,7 +207,7 @@ export const getConversations = async (req, res) => {
                     foreignField: "_id",
                     as: "user",
                     pipeline: [
-                        { $project: { _id: 1, username: 1, name: 1, email: 1, profilePhoto: 1, isDeleted: 1 } }
+                        { $project: { _id: 1, username: 1, name: 1, email: 1, profilePhoto: 1, isDeleted: 1, isBanned: 1 } }
                     ]
                 }
             },

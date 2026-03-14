@@ -312,8 +312,9 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
     };
 
     const isDeletedChat = activeChat?.isDeleted;
-    const isOnline = activeChat && !isDeletedChat && onlineUsers?.has(activeChat._id?.toString?.() || activeChat._id);
-    const isTyping = activeChat && !isDeletedChat && typingUsers?.has(activeChat.username);
+    const isBannedChat = activeChat?.isBanned;
+    const isOnline = activeChat && !isDeletedChat && !isBannedChat && onlineUsers?.has(activeChat._id?.toString?.() || activeChat._id);
+    const isTyping = activeChat && !isDeletedChat && !isBannedChat && typingUsers?.has(activeChat.username);
     const displayChatName = isDeletedChat ? 'Deleted User' : activeChat?.name;
 
     // Empty state
@@ -371,10 +372,19 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
                         )}
                     </div>
                     <div className="min-w-0">
-                        <h3 className={`text-sm font-semibold truncate ${isDeletedChat ? 'text-neutral-500 italic' : 'text-neutral-100'}`}>{displayChatName}</h3>
+                        <div className="flex items-center gap-1.5">
+                            <h3 className={`text-sm font-semibold truncate ${isDeletedChat ? 'text-neutral-500 italic' : 'text-neutral-100'}`}>{displayChatName}</h3>
+                            {isBannedChat && (
+                                <span className="px-1.5 py-0.5 bg-red-500/15 text-red-400 text-[9px] font-semibold uppercase rounded-full flex-shrink-0">
+                                    ⚠️ Suspended
+                                </span>
+                            )}
+                        </div>
                         <p className="text-xs text-neutral-500">
                             {isDeletedChat ? (
                                 <span className="text-neutral-600">Account deleted</span>
+                            ) : isBannedChat ? (
+                                <span className="text-red-400/70">Account suspended</span>
                             ) : isTyping ? (
                                 <span className="text-blue-400 animate-pulse">typing...</span>
                             ) : isOnline ? (
@@ -529,8 +539,8 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
                             </svg>
                             <div>
-                                <p className="text-sm font-semibold text-red-400">Inappropriate Account</p>
-                                <p className="text-xs text-red-400/70 mt-0.5">This account has been flagged as inappropriate. You cannot send messages to this user.</p>
+                                <p className="text-sm font-semibold text-red-400">Account Suspended</p>
+                                <p className="text-xs text-red-400/70 mt-0.5">For safety reasons, you are not allowed to send messages to this user.</p>
                             </div>
                         </div>
                     ) : (
