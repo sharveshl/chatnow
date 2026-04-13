@@ -17,16 +17,11 @@ router.get('/check', authMiddleware, (req, res) => {
     return res.status(200).json({ isAdmin: !!req.user.isAdmin });
 });
 
-// Get all flagged/banned users
-router.get('/flagged-users', authMiddleware, adminOnly, async (req, res) => {
+// Get all users
+router.get('/all-users', authMiddleware, adminOnly, async (req, res) => {
     try {
-        const users = await User.find({
-            $or: [
-                { isBanned: true },
-                { riskScore: { $gt: 0 } }
-            ]
-        })
-            .select('username name email riskScore isBanned lastKnownLocation createdAt updatedAt')
+        const users = await User.find({})
+            .select('username name email riskScore isBanned lastKnownLocation createdAt updatedAt isAdmin')
             .sort({ riskScore: -1 })
             .lean();
 

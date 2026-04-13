@@ -20,7 +20,8 @@ function AdminDashboard() {
                 navigate('/dashboard');
                 return;
             }
-            const res = await API.get('/admin/flagged-users');
+            const res = await API.get('/admin/all-users');
+            // exclude the current admin from the list maybe, or show all
             setUsers(res.data);
         } catch (err) {
             if (err.response?.status === 403) {
@@ -76,6 +77,7 @@ function AdminDashboard() {
 
     const bannedUsers = users.filter(u => u.isBanned);
     const flaggedUsers = users.filter(u => !u.isBanned && u.riskScore > 0);
+    const normalUsers = users.filter(u => !u.isBanned && u.riskScore === 0);
 
     return (
         <div className="h-screen overflow-y-auto bg-[#0a0a12] text-neutral-100">
@@ -169,6 +171,31 @@ function AdminDashboard() {
                     ) : (
                         <div className="space-y-3">
                             {flaggedUsers.map(user => (
+                                <UserCard
+                                    key={user._id}
+                                    user={user}
+                                    onBan={handleBan}
+                                    onUnban={handleUnban}
+                                    actionLoading={actionLoading}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* Normal Users */}
+                <div className="mt-8">
+                    <h2 className="text-base font-semibold text-neutral-200 mb-4 flex items-center gap-2">
+                        <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                        Normal Accounts
+                    </h2>
+                    {normalUsers.length === 0 ? (
+                        <div className="bg-[#111118] border border-[#1e1e2a] rounded-xl p-8 text-center">
+                            <p className="text-sm text-neutral-500">No normal accounts found</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {normalUsers.map(user => (
                                 <UserCard
                                     key={user._id}
                                     user={user}
