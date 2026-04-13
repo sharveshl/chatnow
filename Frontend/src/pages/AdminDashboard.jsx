@@ -182,61 +182,77 @@ function AdminDashboard() {
 }
 
 function UserCard({ user, onBan, onUnban, actionLoading }) {
+    const [isExpanded, setIsExpanded] = useState(false);
     const loc = user.lastKnownLocation;
     const hasLocation = loc?.lat != null && loc?.lng != null;
     const isLoading = actionLoading === user._id;
 
     return (
         <div className="bg-[#111118] border border-[#1e1e2a] rounded-xl p-5 hover:border-[#2a2a3a] transition-colors">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-sm font-semibold text-neutral-100">{user.name}</h3>
+                    <div 
+                        className="flex items-center gap-2 mb-1 cursor-pointer w-fit group" 
+                        onClick={() => setIsExpanded(!isExpanded)}
+                    >
+                        <h3 className="text-sm font-semibold text-neutral-100 group-hover:text-blue-400 transition-colors">{user.name}</h3>
                         {user.isBanned && (
                             <span className="px-2 py-0.5 bg-red-500/15 text-red-400 text-[10px] font-semibold uppercase rounded-full">
                                 Banned
                             </span>
                         )}
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={`w-3.5 h-3.5 text-neutral-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                        </svg>
                     </div>
-                    <p className="text-xs text-neutral-500 mb-2">@{user.username} • {user.email}</p>
+                    <p className="text-xs text-neutral-500 mb-2">@{user.username}</p>
 
-                    <div className="flex flex-wrap gap-3 text-xs">
-                        <div className="flex items-center gap-1.5">
-                            <span className="text-neutral-500">Risk Score:</span>
-                            <span className={`font-semibold ${user.riskScore >= 80 ? 'text-red-400' :
-                                    user.riskScore >= 40 ? 'text-orange-400' : 'text-yellow-400'
-                                }`}>
-                                {user.riskScore}
-                            </span>
-                        </div>
-
-                        {hasLocation && (
-                            <div className="flex items-center gap-1.5">
-                                <span className="text-neutral-500">📍 Location:</span>
-                                <a
-                                    href={`https://www.google.com/maps?q=${loc.lat},${loc.lng}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-blue-400 hover:underline font-medium"
-                                >
-                                    {loc.lat.toFixed(4)}, {loc.lng.toFixed(4)}
-                                </a>
-                                {loc.capturedAt && (
-                                    <span className="text-neutral-600">
-                                        ({new Date(loc.capturedAt).toLocaleDateString()})
-                                    </span>
-                                )}
+                    {isExpanded && (
+                        <div className="mt-4 flex flex-col gap-3 text-xs bg-[#0a0a12] p-4 rounded-lg border border-[#1e1e2a]">
+                            <div className="flex items-center gap-2">
+                                <span className="text-neutral-500 w-20">Email:</span>
+                                <span className="text-neutral-300">{user.email}</span>
                             </div>
-                        )}
 
-                        <div className="flex items-center gap-1.5">
-                            <span className="text-neutral-500">Joined:</span>
-                            <span className="text-neutral-400">{new Date(user.createdAt).toLocaleDateString()}</span>
+                            <div className="flex items-center gap-2">
+                                <span className="text-neutral-500 w-20">Risk Score:</span>
+                                <span className={`font-semibold ${user.riskScore >= 80 ? 'text-red-400' :
+                                        user.riskScore >= 40 ? 'text-orange-400' : 'text-yellow-400'
+                                    }`}>
+                                    {user.riskScore}
+                                </span>
+                            </div>
+
+                            {hasLocation && (
+                                <div className="flex items-center gap-2">
+                                    <span className="text-neutral-500 w-20">Last Location:</span>
+                                    <div className="flex items-center gap-1.5">
+                                        <a
+                                            href={`https://www.google.com/maps?q=${loc.lat},${loc.lng}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-blue-400 hover:underline font-medium"
+                                        >
+                                            {loc.lat.toFixed(4)}, {loc.lng.toFixed(4)}
+                                        </a>
+                                        {loc.capturedAt && (
+                                            <span className="text-neutral-600">
+                                                (Captured: {new Date(loc.capturedAt).toLocaleString()})
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="flex items-center gap-2">
+                                <span className="text-neutral-500 w-20">Joined:</span>
+                                <span className="text-neutral-400">{new Date(user.createdAt).toLocaleDateString()}</span>
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
 
-                <div className="flex gap-2 flex-shrink-0">
+                <div className="flex gap-2 flex-shrink-0 mt-2 md:mt-0">
                     {user.isBanned ? (
                         <button
                             onClick={() => onUnban(user._id)}
