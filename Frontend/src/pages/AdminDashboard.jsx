@@ -29,6 +29,8 @@ function AdminDashboard() {
         } catch (err) {
             if (err.response?.status === 403 || err.response?.status === 401) {
                 navigate('/dashboard');
+            } else if (err.response?.status === 404) {
+                setError('Backend endpoint not found - Please wait for Render to finish deploying the new backend update.');
             } else {
                 setError(err.response?.data?.message || 'Network error: Failed to connect to server');
             }
