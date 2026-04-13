@@ -2,14 +2,14 @@ import { io } from 'socket.io-client';
 
 let socket = null;
 
-export function connectSocket(token) {
+export function connectSocket() {
     if (socket?.connected) return socket;
 
     // Derive the base URL from the backend API url (strip /api)
     const backendUrl = import.meta.env.VITE_backendurl?.replace(/\/api\/?$/, '') || 'http://localhost:5000';
 
     socket = io(backendUrl, {
-        auth: { token },
+        withCredentials: true,
         reconnection: true,
         reconnectionDelay: 1000,
         reconnectionAttempts: 10,

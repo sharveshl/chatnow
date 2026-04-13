@@ -57,8 +57,12 @@ function AdminDashboard() {
         }
     };
 
-    const handleLogout = () => {
-        localStorage.removeItem('token');
+    const handleLogout = async () => {
+        try {
+            await API.post('/auth/logout');
+        } catch {
+            // Proceed to login even if logout fails
+        }
         navigate('/login');
     };
 

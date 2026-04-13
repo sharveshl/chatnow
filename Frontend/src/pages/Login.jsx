@@ -16,10 +16,21 @@ const Login = () => {
 
   const navigate = useNavigate();
 
-  // Redirect if already logged in
+  // Redirect if possibly logged in
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) navigate("/dashboard");
+    // We can't check HttpOnly cookie in JS, so we try to check a shadow flag or just try /me
+    const checkAuth = async () => {
+      try {
+        const res = await API.get("/users/me");
+        if (res.data) {
+           if (res.data.isAdmin) navigate("/admin");
+           else navigate("/dashboard");
+        }
+      } catch {
+        // Not logged in, stay on login page
+      }
+    };
+    checkAuth();
   }, [navigate]);
 
   // Load saved profiles
@@ -68,10 +79,7 @@ const Login = () => {
     setLoading(true);
     try {
       const res = await API.post("/auth/login", { email, password });
-      const { token, user } = res.data;
-
-      // Save token
-      localStorage.setItem("token", token);
+      const { user } = res.data;
 
       // Save/update profile in localStorage
       const profiles = JSON.parse(localStorage.getItem(PROFILES_KEY) || "[]");

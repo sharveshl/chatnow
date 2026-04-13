@@ -53,7 +53,6 @@ function Dashboard() {
                     );
                 }
             } catch {
-                localStorage.removeItem("token");
                 navigate("/login");
             }
         };
@@ -90,10 +89,8 @@ function Dashboard() {
     // Socket.IO Setup
     useEffect(() => {
         if (!currentUser) return;
-        const token = localStorage.getItem('token');
-        if (!token) return;
 
-        const socket = connectSocket(token);
+        const socket = connectSocket();
 
         socket.on('online_users', (userIds) => {
             setOnlineUsers(new Set(userIds.map(String)));
@@ -296,9 +293,13 @@ function Dashboard() {
         if (activeChat?._id?.toString() === groupId?.toString()) setActiveChat(null);
     };
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
+        try {
+            await API.post("/auth/logout");
+        } catch {
+            // Even if logout fails (e.g. network issue), proceed to login
+        }
         disconnectSocket();
-        localStorage.removeItem("token");
         navigate("/login");
     };
 

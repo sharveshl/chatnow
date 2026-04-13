@@ -96,7 +96,6 @@ function ProfilePanel({ user, isOwnProfile, onClose, onProfileUpdated, backendUr
         setDeletingAccount(true);
         try {
             await API.delete('/users/account');
-            localStorage.removeItem('token');
             onLogout?.();
         } catch {
             // silently fail

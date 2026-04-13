@@ -2,6 +2,7 @@ import express from "express";
 import dotenv from "dotenv";
 import mongoose from 'mongoose';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createServer } from 'http';
@@ -24,13 +25,18 @@ const httpServer = createServer(app);
 // Setup Socket.IO with CORS
 const io = new Server(httpServer, {
     cors: {
-        origin: '*',
-        methods: ['GET', 'POST']
+        origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+        methods: ['GET', 'POST'],
+        credentials: true
     }
 });
 
 app.use(express.json());
-app.use(cors());
+app.use(cookieParser());
+app.use(cors({
+    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    credentials: true
+}));
 
 // Serve uploaded files statically
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));

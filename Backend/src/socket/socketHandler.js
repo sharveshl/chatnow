@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import cookie from 'cookie';
 import User from '../models/usermodel.js';
 import Message from '../models/messagemodel.js';
 import Group from '../models/groupmodel.js';
@@ -26,7 +27,14 @@ export default function setupSocket(io) {
     // Authenticate socket connections via JWT
     io.use(async (socket, next) => {
         try {
-            const token = socket.handshake.auth.token;
+            let token = socket.handshake.auth.token;
+
+            // Try to extract token from cookies if not in handshake auth
+            if (!token && socket.handshake.headers.cookie) {
+                const cookies = cookie.parse(socket.handshake.headers.cookie);
+                token = cookies.token;
+            }
+
             if (!token) {
                 return next(new Error('Authentication required'));
             }

@@ -51,6 +51,19 @@ function Signup() {
         };
     }, [formData.username]);
 
+    // Redirect if possibly logged in
+    useEffect(() => {
+        const checkAuth = async () => {
+          try {
+            const res = await API.get("/users/me");
+            if (res.data) navigate("/dashboard");
+          } catch {
+            // Not logged in
+          }
+        };
+        checkAuth();
+    }, [navigate]);
+
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
         setError("");
@@ -83,9 +96,7 @@ function Signup() {
         setLoading(true);
         try {
             const res = await API.post("/auth/register", formData);
-            const { token, user } = res.data;
-
-            localStorage.setItem("token", token);
+            const { user } = res.data;
 
             const profiles = JSON.parse(localStorage.getItem(PROFILES_KEY) || "[]");
             profiles.unshift({

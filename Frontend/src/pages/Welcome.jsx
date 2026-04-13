@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import API from "../service/api";
 import Profile from "../Components/Profile";
 
 const PROFILES_KEY = "chatnow_profiles";
@@ -8,10 +9,17 @@ function Welcome() {
     const [savedProfiles, setSavedProfiles] = useState([]);
     const navigate = useNavigate();
 
-    // Redirect if already logged in
+    // Redirect if possibly logged in
     useEffect(() => {
-        const token = localStorage.getItem("token");
-        if (token) navigate("/dashboard");
+        const checkAuth = async () => {
+          try {
+            const res = await API.get("/users/me");
+            if (res.data) navigate("/dashboard");
+          } catch {
+            // Not logged in
+          }
+        };
+        checkAuth();
     }, [navigate]);
 
     // Load saved profiles
