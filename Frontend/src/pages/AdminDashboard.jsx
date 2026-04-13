@@ -74,9 +74,9 @@ function AdminDashboard() {
     const flaggedUsers = users.filter(u => !u.isBanned && u.riskScore > 0);
 
     return (
-        <div className="min-h-screen bg-[#0a0a12] text-neutral-100">
+        <div className="h-screen overflow-y-auto bg-[#0a0a12] text-neutral-100">
             {/* Header */}
-            <div className="bg-[#111118] border-b border-[#1e1e2a] px-6 py-4 flex items-center justify-between">
+            <div className="bg-[#111118] border-b border-[#1e1e2a] px-6 py-4 flex items-center justify-between sticky top-0 z-10">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-red-500/20 rounded-xl flex items-center justify-center">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-red-400">
