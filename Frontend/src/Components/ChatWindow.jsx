@@ -110,7 +110,8 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
         };
 
         const handleSecurityWarning = (data) => {
-            if (data.recipientUsername && data.recipientUsername !== activeChat.username) return;
+            // Keep receiver logic clean
+            if (data.senderUsername && data.senderUsername !== activeChat.username && data.senderUsername !== currentUser?.username) return;
             setSecurityWarning(data);
             setTimeout(() => setSecurityWarning(null), 6000);
         };
@@ -170,7 +171,7 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
         if (!isTypingRef.current) return;
         isTypingRef.current = false;
         const socket = getSocket();
-        if (socket) socket.emit('typing_stop', { recipientUsername: activeChat.username });
+        if (socket) socket.emit('typing_stop', { receiverUsername: activeChat.username });
     }, [activeChat?.username]);
 
     const handleInputChange = (e) => {
@@ -180,7 +181,7 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
 
         if (!isTypingRef.current) {
             isTypingRef.current = true;
-            socket.emit('typing_start', { recipientUsername: activeChat.username });
+            socket.emit('typing_start', { receiverUsername: activeChat.username });
         }
 
         if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
@@ -206,7 +207,7 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
         if (!socket) { setSending(false); return; }
 
         socket.emit('send_message', {
-            recipientUsername: activeChat.username,
+            receiverUsername: activeChat.username,
             content
         }, (response) => {
             if (response?.blocked) {
