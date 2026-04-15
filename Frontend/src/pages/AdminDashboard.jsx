@@ -1,76 +1,68 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import API from '../service/api';
 
 function AdminDashboard() {
+    const [stats, setStats] = useState(null);
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
     const [actionLoading, setActionLoading] = useState(null);
-    const [refreshing, setRefreshing] = useState(false);
     const navigate = useNavigate();
 
     useEffect(() => {
-        checkAdminAndFetch(true);
-    }, []);
+        const checkAdmin = async () => {
+            try {
+                const res = await API.get('/users/me');
+                if (!res.data.isAdmin) {
+                    navigate('/dashboard');
+                    return;
+                }
+                fetchData();
+            } catch {
+                navigate('/login');
+            }
+        };
+        checkAdmin();
+    }, [navigate]);
 
-    const checkAdminAndFetch = async (initial = false) => {
-        if (!initial) setRefreshing(true);
-        setError('');
+    const fetchData = async () => {
         try {
-            const checkRes = await API.get('/admin/check');
-            if (!checkRes.data.isAdmin) {
-                navigate('/dashboard');
-                return;
-            }
-            const res = await API.get('/admin/all-users');
-            // exclude the current admin from the list maybe, or show all
-            setUsers(res.data);
+            const [statsRes, usersRes] = await Promise.all([
+                API.get('/admin/stats'),
+                API.get('/admin/users')
+            ]);
+            setStats(statsRes.data);
+            setUsers(usersRes.data);
         } catch (err) {
-            if (err.response?.status === 403 || err.response?.status === 401) {
-                navigate('/dashboard');
-            } else if (err.response?.status === 404) {
-                setError('Backend endpoint not found - Please wait for Render to finish deploying the new backend update.');
-            } else {
-                setError(err.response?.data?.message || 'Network error: Failed to connect to server');
-            }
+            console.error('Failed to fetch admin data:', err);
         } finally {
             setLoading(false);
-            setRefreshing(false);
         }
     };
 
-    const handleBan = async (userId) => {
+    const handleBanUser = async (userId) => {
+        if (!confirm('Are you sure you want to ban this user?')) return;
         setActionLoading(userId);
         try {
-            const res = await API.post(`/admin/ban-user/${userId}`);
-            setUsers(prev => prev.map(u => u._id === userId ? { ...u, isBanned: true, ...res.data.user } : u));
+            await API.post(`/admin/users/${userId}/ban`);
+            fetchData();
         } catch (err) {
-            setError(err.response?.data?.message || 'Action failed');
+            alert(err.response?.data?.message || 'Failed to ban user');
         } finally {
             setActionLoading(null);
         }
     };
 
-    const handleUnban = async (userId) => {
+    const handleUnbanUser = async (userId) => {
         setActionLoading(userId);
         try {
-            const res = await API.post(`/admin/unban-user/${userId}`);
-            setUsers(prev => prev.map(u => u._id === userId ? { ...u, isBanned: false, riskScore: 0, ...res.data.user } : u));
+            await API.post(`/admin/users/${userId}/unban`);
+            fetchData();
         } catch (err) {
-            setError(err.response?.data?.message || 'Action failed');
+            alert(err.response?.data?.message || 'Failed to unban user');
         } finally {
             setActionLoading(null);
         }
-    };
-
-    const handleLogout = async () => {
-        try {
-            await API.post('/auth/logout');
-        } catch {
-            // Proceed to login even if logout fails
-        }
-        navigate('/login');
     };
 
     if (loading) {
@@ -81,260 +73,158 @@ function AdminDashboard() {
         );
     }
 
-    const bannedUsers = users.filter(u => u.isBanned);
-    const flaggedUsers = users.filter(u => !u.isBanned && u.riskScore > 0);
-    const normalUsers = users.filter(u => !u.isBanned && u.riskScore === 0);
-
     return (
-        <div className="h-screen overflow-y-auto bg-[#0a0a12] text-neutral-100">
+        <div className="min-h-screen bg-[#0a0a12] text-neutral-100">
             {/* Header */}
-            <div className="bg-[#0a0a12]/80 backdrop-blur-md border-b border-[#1e1e2a] px-6 py-4 flex items-center justify-between sticky top-0 z-10 shadow-sm">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-red-500/20 to-red-600/10 rounded-xl flex items-center justify-center border border-red-500/10 shadow-inner">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-red-500">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
-                        </svg>
+            <div className="bg-[#111118] border-b border-[#1e1e2a] px-6 py-4">
+                <div className="max-w-7xl mx-auto flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <Link to="/dashboard" className="text-neutral-500 hover:text-neutral-300 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+                            </svg>
+                        </Link>
+                        <h1 className="text-xl font-bold">Admin Dashboard</h1>
                     </div>
-                    <div>
-                        <h1 className="text-lg font-bold tracking-tight text-white drop-shadow-sm">Admin Dashboard</h1>
-                        <p className="text-xs text-neutral-400 font-medium">Security & Moderation</p>
-                    </div>
-                </div>
-                <div className="flex items-center gap-2 md:gap-3">
-                    <button
-                        onClick={() => checkAdminAndFetch(false)}
-                        disabled={refreshing}
-                        className="px-3 md:px-4 py-2 bg-[#1a1a25] hover:bg-[#252535] text-neutral-300 text-sm rounded-lg transition-all cursor-pointer flex items-center gap-2 border border-[#2a2a35] shadow-sm disabled:opacity-50"
-                        title="Refresh Data"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
-                        </svg>
-                        <span className="hidden md:inline">{refreshing ? 'Refreshing...' : 'Refresh'}</span>
-                    </button>
-                    <button
-                        onClick={() => navigate('/dashboard')}
-                        className="px-3 md:px-4 py-2 bg-[#1a1a25] hover:bg-[#252535] text-neutral-300 text-sm rounded-lg transition-all cursor-pointer border border-[#2a2a35] shadow-sm hidden sm:block"
-                    >
-                        Dashboard
-                    </button>
-                    <button
-                        onClick={handleLogout}
-                        className="px-3 md:px-4 py-2 bg-gradient-to-r from-red-500/10 to-red-600/10 hover:from-red-500/20 hover:to-red-600/20 shadow-sm text-red-500 text-sm rounded-lg transition-all cursor-pointer border border-red-500/20"
-                    >
-                        Logout
+                    <button onClick={() => navigate('/dashboard')}
+                        className="px-4 py-2 bg-[#1a1a25] hover:bg-[#222230] rounded-xl text-sm font-medium transition-colors">
+                        Back to Chat
                     </button>
                 </div>
             </div>
 
-            <div className="max-w-6xl mx-auto px-4 md:px-6 py-8">
-                {error && (
-                    <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm px-4 py-3 rounded-xl mb-6">
-                        {error}
-                    </div>
-                )}
-
-                {/* Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-                    <div className="bg-gradient-to-br from-[#111118] to-[#151520] border border-[#1e1e2a] rounded-2xl p-6 shadow-md hover:shadow-red-500/10 hover:border-red-500/30 transition-all group">
-                        <div className="flex justify-between items-start mb-4">
-                            <p className="text-xs text-neutral-400 font-semibold uppercase tracking-wider">Banned Accounts</p>
-                            <div className="w-8 h-8 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 0 0 5.636 5.636m12.728 12.728A9 9 0 0 1 5.636 5.636m12.728 12.728L5.636 5.636" /></svg>
-                            </div>
-                        </div>
-                        <p className="text-4xl font-extrabold text-white">{bannedUsers.length}</p>
-                    </div>
-
-                    <div className="bg-gradient-to-br from-[#111118] to-[#151520] border border-[#1e1e2a] rounded-2xl p-6 shadow-md hover:shadow-orange-500/10 hover:border-orange-500/30 transition-all group">
-                        <div className="flex justify-between items-start mb-4">
-                            <p className="text-xs text-neutral-400 font-semibold uppercase tracking-wider">Flagged Accounts</p>
-                            <div className="w-8 h-8 rounded-full bg-orange-500/10 text-orange-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                            </div>
-                        </div>
-                        <p className="text-4xl font-extrabold text-white">{flaggedUsers.length}</p>
-                    </div>
-
-                    <div className="bg-gradient-to-br from-[#111118] to-[#151520] border border-[#1e1e2a] rounded-2xl p-6 shadow-md hover:shadow-blue-500/10 hover:border-blue-500/30 transition-all group">
-                        <div className="flex justify-between items-start mb-4">
-                            <p className="text-xs text-neutral-400 font-semibold uppercase tracking-wider">Total Monitored</p>
-                            <div className="w-8 h-8 rounded-full bg-blue-500/10 text-blue-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" /></svg>
-                            </div>
-                        </div>
-                        <p className="text-4xl font-extrabold text-white">{users.length}</p>
-                    </div>
+            <div className="max-w-7xl mx-auto px-6 py-8">
+                {/* Stats Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                    <StatCard
+                        title="Total Users"
+                        value={stats?.totalUsers || 0}
+                        icon={
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+                            </svg>
+                        }
+                        color="blue"
+                    />
+                    <StatCard
+                        title="Total Messages"
+                        value={stats?.totalMessages || 0}
+                        icon={
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" />
+                            </svg>
+                        }
+                        color="green"
+                    />
+                    <StatCard
+                        title="Total Groups"
+                        value={stats?.totalGroups || 0}
+                        icon={
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
+                            </svg>
+                        }
+                        color="purple"
+                    />
                 </div>
 
-                {/* Banned Users */}
-                <div className="mb-8">
-                    <h2 className="text-base font-semibold text-neutral-200 mb-4 flex items-center gap-2">
-                        <span className="w-2 h-2 bg-red-500 rounded-full"></span>
-                        Banned / Inappropriate Accounts
-                    </h2>
-                    {bannedUsers.length === 0 ? (
-                        <div className="bg-[#111118] border border-[#1e1e2a] rounded-xl p-8 text-center">
-                            <p className="text-sm text-neutral-500">No banned accounts</p>
-                        </div>
-                    ) : (
-                        <div className="space-y-3">
-                            {bannedUsers.map(user => (
-                                <UserCard
-                                    key={user._id}
-                                    user={user}
-                                    onBan={handleBan}
-                                    onUnban={handleUnban}
-                                    actionLoading={actionLoading}
-                                />
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-                {/* Flagged Users */}
-                <div>
-                    <h2 className="text-base font-semibold text-neutral-200 mb-4 flex items-center gap-2">
-                        <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
-                        Flagged Accounts (Risk Score &gt; 0)
-                    </h2>
-                    {flaggedUsers.length === 0 ? (
-                        <div className="bg-[#111118] border border-[#1e1e2a] rounded-xl p-8 text-center">
-                            <p className="text-sm text-neutral-500">No flagged accounts</p>
-                        </div>
-                    ) : (
-                        <div className="space-y-3">
-                            {flaggedUsers.map(user => (
-                                <UserCard
-                                    key={user._id}
-                                    user={user}
-                                    onBan={handleBan}
-                                    onUnban={handleUnban}
-                                    actionLoading={actionLoading}
-                                />
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-                {/* Normal Users */}
-                <div className="mt-8">
-                    <h2 className="text-base font-semibold text-neutral-200 mb-4 flex items-center gap-2">
-                        <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                        Normal Accounts
-                    </h2>
-                    {normalUsers.length === 0 ? (
-                        <div className="bg-[#111118] border border-[#1e1e2a] rounded-xl p-8 text-center">
-                            <p className="text-sm text-neutral-500">No normal accounts found</p>
-                        </div>
-                    ) : (
-                        <div className="space-y-3">
-                            {normalUsers.map(user => (
-                                <UserCard
-                                    key={user._id}
-                                    user={user}
-                                    onBan={handleBan}
-                                    onUnban={handleUnban}
-                                    actionLoading={actionLoading}
-                                />
-                            ))}
-                        </div>
-                    )}
+                {/* Users Table */}
+                <div className="bg-[#111118] border border-[#1e1e2a] rounded-2xl overflow-hidden">
+                    <div className="px-6 py-4 border-b border-[#1e1e2a]">
+                        <h2 className="text-lg font-semibold">User Management</h2>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead className="bg-[#0a0a12]">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">User</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Email</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Status</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Joined</th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-[#1e1e2a]">
+                                {users.map((user) => (
+                                    <tr key={user._id} className="hover:bg-[#1a1a25] transition-colors">
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-[#0066FF] flex items-center justify-center text-white text-sm font-semibold">
+                                                    {user.name?.charAt(0).toUpperCase()}
+                                                </div>
+                                                <div>
+                                                    <div className="text-sm font-medium text-neutral-100">{user.name}</div>
+                                                    <div className="text-xs text-neutral-500">@{user.username}</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-400">{user.email}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            {user.isBanned ? (
+                                                <span className="px-2.5 py-1 text-xs font-medium bg-red-500/10 text-red-400 rounded-full border border-red-500/20">
+                                                    Banned
+                                                </span>
+                                            ) : user.isAdmin ? (
+                                                <span className="px-2.5 py-1 text-xs font-medium bg-purple-500/10 text-purple-400 rounded-full border border-purple-500/20">
+                                                    Admin
+                                                </span>
+                                            ) : (
+                                                <span className="px-2.5 py-1 text-xs font-medium bg-green-500/10 text-green-400 rounded-full border border-green-500/20">
+                                                    Active
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-400">
+                                            {new Date(user.createdAt).toLocaleDateString()}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                                            {!user.isAdmin && (
+                                                user.isBanned ? (
+                                                    <button
+                                                        onClick={() => handleUnbanUser(user._id)}
+                                                        disabled={actionLoading === user._id}
+                                                        className="px-3 py-1.5 bg-green-500/10 text-green-400 rounded-lg text-xs font-medium hover:bg-green-500/20 disabled:opacity-50 transition-colors"
+                                                    >
+                                                        {actionLoading === user._id ? 'Loading...' : 'Unban'}
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handleBanUser(user._id)}
+                                                        disabled={actionLoading === user._id}
+                                                        className="px-3 py-1.5 bg-red-500/10 text-red-400 rounded-lg text-xs font-medium hover:bg-red-500/20 disabled:opacity-50 transition-colors"
+                                                    >
+                                                        {actionLoading === user._id ? 'Loading...' : 'Ban'}
+                                                    </button>
+                                                )
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
     );
 }
 
-function UserCard({ user, onBan, onUnban, actionLoading }) {
-    const [isExpanded, setIsExpanded] = useState(false);
-    const loc = user.lastKnownLocation;
-    const hasLocation = loc?.lat != null && loc?.lng != null;
-    const isLoading = actionLoading === user._id;
+function StatCard({ title, value, icon, color }) {
+    const colorClasses = {
+        blue: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+        green: 'bg-green-500/10 text-green-400 border-green-500/20',
+        purple: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+    };
 
     return (
-        <div className="bg-[#111118] border border-[#1e1e2a] rounded-xl p-5 hover:border-[#2a2a3a] transition-colors">
-            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                    <div 
-                        className="flex items-center gap-2 mb-1 cursor-pointer w-fit group" 
-                        onClick={() => setIsExpanded(!isExpanded)}
-                    >
-                        <h3 className="text-sm font-semibold text-neutral-100 group-hover:text-blue-400 transition-colors">{user.name}</h3>
-                        {user.isBanned && (
-                            <span className="px-2 py-0.5 bg-red-500/15 text-red-400 text-[10px] font-semibold uppercase rounded-full">
-                                Banned
-                            </span>
-                        )}
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={`w-3.5 h-3.5 text-neutral-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-                        </svg>
-                    </div>
-                    <p className="text-xs text-neutral-500 mb-2">@{user.username}</p>
-
-                    {isExpanded && (
-                        <div className="mt-4 flex flex-col gap-3 text-xs bg-[#0a0a12] p-4 rounded-lg border border-[#1e1e2a]">
-                            <div className="flex items-center gap-2">
-                                <span className="text-neutral-500 w-20">Email:</span>
-                                <span className="text-neutral-300">{user.email}</span>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                                <span className="text-neutral-500 w-20">Risk Score:</span>
-                                <span className={`font-semibold ${user.riskScore >= 80 ? 'text-red-400' :
-                                        user.riskScore >= 40 ? 'text-orange-400' : 'text-yellow-400'
-                                    }`}>
-                                    {user.riskScore}
-                                </span>
-                            </div>
-
-                            {hasLocation && (
-                                <div className="flex items-center gap-2">
-                                    <span className="text-neutral-500 w-20">Last Location:</span>
-                                    <div className="flex items-center gap-1.5">
-                                        <a
-                                            href={`https://www.google.com/maps?q=${loc.lat},${loc.lng}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-blue-400 hover:underline font-medium"
-                                        >
-                                            {loc.lat.toFixed(4)}, {loc.lng.toFixed(4)}
-                                        </a>
-                                        {loc.capturedAt && (
-                                            <span className="text-neutral-600">
-                                                (Captured: {new Date(loc.capturedAt).toLocaleString()})
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className="flex items-center gap-2">
-                                <span className="text-neutral-500 w-20">Joined:</span>
-                                <span className="text-neutral-400">{new Date(user.createdAt).toLocaleDateString()}</span>
-                            </div>
-                        </div>
-                    )}
+        <div className="bg-[#111118] border border-[#1e1e2a] rounded-2xl p-6 animate-fade-in">
+            <div className="flex items-center justify-between">
+                <div>
+                    <p className="text-xs text-neutral-500 uppercase tracking-wider mb-1">{title}</p>
+                    <p className="text-3xl font-bold text-neutral-100">{value.toLocaleString()}</p>
                 </div>
-
-                <div className="flex gap-2 flex-shrink-0 mt-2 md:mt-0">
-                    {user.isBanned ? (
-                        <button
-                            onClick={() => onUnban(user._id)}
-                            disabled={isLoading}
-                            className="px-4 py-2 bg-green-500/10 hover:bg-green-500/20 text-green-400 text-xs font-medium rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
-                        >
-                            {isLoading ? 'Processing...' : 'Unban'}
-                        </button>
-                    ) : (
-                        <button
-                            onClick={() => onBan(user._id)}
-                            disabled={isLoading}
-                            className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-medium rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
-                        >
-                            {isLoading ? 'Processing...' : 'Ban User'}
-                        </button>
-                    )}
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center border ${colorClasses[color]}`}>
+                    {icon}
                 </div>
             </div>
         </div>

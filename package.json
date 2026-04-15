@@ -1,0 +1,25 @@
+{
+  "name": "chatnow",
+  "version": "1.0.0",
+  "description": "Real-time messaging application with React and Node.js",
+  "scripts": {
+    "install-all": "npm install --prefix Backend && npm install --prefix Frontend",
+    "dev": "concurrently \"npm run dev --prefix Backend\" \"npm run dev --prefix Frontend\"",
+    "build": "npm run build --prefix Frontend",
+    "start-backend": "npm run dev --prefix Backend",
+    "start-frontend": "npm run dev --prefix Frontend"
+  },
+  "keywords": [
+    "chat",
+    "messaging",
+    "real-time",
+    "socket.io",
+    "react",
+    "nodejs"
+  ],
+  "author": "ChatNow Team",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

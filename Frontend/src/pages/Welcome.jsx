@@ -9,49 +9,45 @@ function Welcome() {
     const [savedProfiles, setSavedProfiles] = useState([]);
     const navigate = useNavigate();
 
-    // Redirect if possibly logged in
     useEffect(() => {
         const checkAuth = async () => {
-          try {
-            const res = await API.get("/users/me");
-            if (res.data) navigate("/dashboard");
-          } catch {
-            // Not logged in
-          }
+            try {
+                const res = await API.get("/users/me");
+                if (res.data) navigate("/dashboard");
+            } catch { /* not logged in */ }
         };
         checkAuth();
     }, [navigate]);
 
-    // Load saved profiles
     useEffect(() => {
         try {
             const profiles = JSON.parse(localStorage.getItem(PROFILES_KEY) || "[]");
             setSavedProfiles(profiles);
-        } catch {
-            setSavedProfiles([]);
-        }
+        } catch { setSavedProfiles([]); }
     }, []);
 
     return (
-        <div className="min-h-screen bg-[#fafafa] flex items-center justify-center px-4">
-            <div className="w-full max-w-lg text-center animate-slide-up">
-                {/* Logo / Brand */}
-                <div className="mb-8">
-                    <div className="w-14 h-14 bg-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                        <span className="text-white text-xl font-bold">C</span>
+        <div className="min-h-screen bg-[#0a0a12] flex items-center justify-center px-4 relative overflow-hidden">
+            {/* Background glow orbs */}
+            <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-600/8 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-violet-600/6 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="w-full max-w-md relative z-10 animate-fade-in-up">
+                {/* Brand */}
+                <div className="text-center mb-10">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 shadow-lg shadow-blue-500/25 mb-5">
+                        <img src="/chatnow new logo svg.svg" alt="ChatNow" className="w-10 h-10 object-contain" />
                     </div>
-                    <h1 className="text-3xl font-bold text-neutral-900 tracking-tight">
-                        ChatNow
-                    </h1>
-                    <p className="text-neutral-400 text-sm mt-2">
-                        Your one-stop solution for seamless communication.
+                    <h1 className="text-3xl font-bold text-white tracking-tight mb-2">ChatNow</h1>
+                    <p className="text-neutral-500 text-sm leading-relaxed">
+                        Real-time messaging, reimagined.
                     </p>
                 </div>
 
-                {/* Saved Profiles */}
+                {/* Saved profiles */}
                 {savedProfiles.length > 0 && (
-                    <div className="mb-8 animate-fade-in">
-                        <p className="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-3">
+                    <div className="mb-6 animate-fade-in">
+                        <p className="text-[11px] font-semibold text-neutral-500 uppercase tracking-widest mb-3 text-center">
                             Continue as
                         </p>
                         <div className="flex gap-3 justify-center flex-wrap">
@@ -68,31 +64,32 @@ function Welcome() {
                     </div>
                 )}
 
-                {/* Actions */}
-                <div className="bg-white rounded-2xl border border-neutral-200 p-6 shadow-sm">
-                    <p className="text-sm text-neutral-500 mb-4">
+                {/* CTA card */}
+                <div className="bg-[#111118] border border-[#1e1e2a] rounded-2xl p-6 shadow-xl">
+                    <p className="text-sm text-neutral-400 text-center mb-5">
                         {savedProfiles.length > 0
-                            ? "Or get started with a different account"
-                            : "Get started by signing in or creating an account"
-                        }
+                            ? "Or sign in with a different account"
+                            : "Get started — it only takes a moment"}
                     </p>
-                    <div className="flex gap-3 justify-center">
+                    <div className="flex gap-3">
                         <Link
                             to="/login"
-                            className="px-6 py-2.5 bg-emerald-500 text-white rounded-xl text-sm font-medium
-                                hover:bg-emerald-600 active:scale-[0.98] transition-all"
+                            className="flex-1 py-3 bg-[#0084FF] hover:bg-[#0070DD] text-white text-sm font-semibold rounded-xl text-center transition-all active:scale-[0.98] shadow-md shadow-blue-500/20"
                         >
-                            Log In
+                            Sign In
                         </Link>
                         <Link
                             to="/signup"
-                            className="px-6 py-2.5 border-2 border-neutral-200 text-neutral-700 rounded-xl text-sm font-medium
-                                hover:border-neutral-400 hover:bg-neutral-50 active:scale-[0.98] transition-all"
+                            className="flex-1 py-3 bg-[#1a1a25] hover:bg-[#252535] border border-[#2a2a35] text-neutral-200 text-sm font-semibold rounded-xl text-center transition-all active:scale-[0.98]"
                         >
-                            Sign Up
+                            Create Account
                         </Link>
                     </div>
                 </div>
+
+                <p className="text-center text-xs text-neutral-600 mt-6">
+                    Secure · End-to-end encrypted · Real-time
+                </p>
             </div>
         </div>
     );
