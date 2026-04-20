@@ -1,6 +1,8 @@
 import express from 'express';
 import authMiddleware from '../middlewares/authmiddleware.js';
 import User from '../models/usermodel.js';
+import Message from '../models/messagemodel.js';
+import Group from '../models/groupmodel.js';
 
 const router = express.Router();
 
@@ -17,8 +19,22 @@ router.get('/check', authMiddleware, (req, res) => {
     return res.status(200).json({ isAdmin: !!req.user.isAdmin });
 });
 
+// Get admin stats
+router.get('/stats', authMiddleware, adminOnly, async (req, res) => {
+    try {
+        const [totalUsers, totalMessages, totalGroups] = await Promise.all([
+            User.countDocuments(),
+            Message.countDocuments(),
+            Group.countDocuments()
+        ]);
+        return res.status(200).json({ totalUsers, totalMessages, totalGroups });
+    } catch (err) {
+        return res.status(500).json({ message: err.message });
+    }
+});
+
 // Get all users
-router.get('/all-users', authMiddleware, adminOnly, async (req, res) => {
+router.get('/users', authMiddleware, adminOnly, async (req, res) => {
     try {
         const users = await User.find({})
             .select('username name email riskScore isBanned lastKnownLocation createdAt updatedAt isAdmin')
@@ -32,7 +48,7 @@ router.get('/all-users', authMiddleware, adminOnly, async (req, res) => {
 });
 
 // Manually ban a user
-router.post('/ban-user/:userId', authMiddleware, adminOnly, async (req, res) => {
+router.post('/users/:userId/ban', authMiddleware, adminOnly, async (req, res) => {
     try {
         const user = await User.findByIdAndUpdate(
             req.params.userId,
@@ -49,7 +65,7 @@ router.post('/ban-user/:userId', authMiddleware, adminOnly, async (req, res) => 
 });
 
 // Unban a user
-router.post('/unban-user/:userId', authMiddleware, adminOnly, async (req, res) => {
+router.post('/users/:userId/unban', authMiddleware, adminOnly, async (req, res) => {
     try {
         const user = await User.findByIdAndUpdate(
             req.params.userId,

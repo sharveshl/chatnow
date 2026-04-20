@@ -27,6 +27,7 @@ function AdminDashboard() {
 
     const fetchData = async () => {
         try {
+            setLoading(true);
             const [statsRes, usersRes] = await Promise.all([
                 API.get('/admin/stats'),
                 API.get('/admin/users')
@@ -86,10 +87,18 @@ function AdminDashboard() {
                         </Link>
                         <h1 className="text-xl font-bold">Admin Dashboard</h1>
                     </div>
-                    <button onClick={() => navigate('/dashboard')}
-                        className="px-4 py-2 bg-[#1a1a25] hover:bg-[#222230] rounded-xl text-sm font-medium transition-colors">
-                        Back to Chat
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <button onClick={fetchData} className="px-4 py-2 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded-xl text-sm font-medium transition-colors flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                            </svg>
+                            Refresh
+                        </button>
+                        <button onClick={() => navigate('/dashboard')}
+                            className="px-4 py-2 bg-[#1a1a25] hover:bg-[#222230] rounded-xl text-sm font-medium transition-colors">
+                            Back to Chat
+                        </button>
+                    </div>
                 </div>
             </div>
 
