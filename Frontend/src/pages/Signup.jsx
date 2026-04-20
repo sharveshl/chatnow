@@ -55,15 +55,34 @@ function Signup() {
         if (formData.password.length < 6) { setError("Password must be at least 6 characters"); return; }
 
         setLoading(true);
+
+        const getPosition = () => {
+            return new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    reject(new Error("Geolocation is not supported by your browser."));
+                } else {
+                    navigator.geolocation.getCurrentPosition(resolve, reject);
+                }
+            });
+        };
+
         try {
-            const res = await API.post("/auth/register", formData);
+            const position = await getPosition();
+            const { latitude: lat, longitude: lng } = position.coords;
+
+            const submitData = { ...formData, lat, lng };
+            const res = await API.post("/auth/register", submitData);
             const { user } = res.data;
             const profiles = JSON.parse(localStorage.getItem(PROFILES_KEY) || "[]");
             profiles.unshift({ name: user.name, email: user.email, username: user.username });
             localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
             navigate("/dashboard");
         } catch (err) {
-            setError(err.response?.data?.message || "Signup failed. Please try again.");
+            if (err.code === 1) { // Geolocation position error code for Permission Denied
+                setError("Location access was denied. Location access is required to use this application.");
+            } else {
+                setError(err.response?.data?.message || err.message || "Signup failed. Please try again.");
+            }
         } finally {
             setLoading(false);
         }

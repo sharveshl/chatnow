@@ -7,6 +7,10 @@ function AdminDashboard() {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [statusFilter, setStatusFilter] = useState('All');
+    const [sortField, setSortField] = useState('joined');
+    const [sortOrder, setSortOrder] = useState('desc');
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -65,6 +69,33 @@ function AdminDashboard() {
             setActionLoading(null);
         }
     };
+
+    const filteredUsers = users.filter((user) => {
+        const query = searchQuery.toLowerCase();
+        const matchesSearch = user.name?.toLowerCase().includes(query) || 
+                              user.username?.toLowerCase().includes(query) ||
+                              user.email?.toLowerCase().includes(query);
+        
+        let matchesStatus = true;
+        if (statusFilter === 'Active') matchesStatus = !user.isBanned && !user.isAdmin;
+        if (statusFilter === 'Banned') matchesStatus = user.isBanned;
+        if (statusFilter === 'Admin') matchesStatus = user.isAdmin;
+
+        return matchesSearch && matchesStatus;
+    }).sort((a, b) => {
+        let valA, valB;
+        if (sortField === 'joined') {
+            valA = new Date(a.createdAt).getTime();
+            valB = new Date(b.createdAt).getTime();
+        } else if (sortField === 'lastLogin') {
+            valA = a.lastLogin ? new Date(a.lastLogin).getTime() : 0;
+            valB = b.lastLogin ? new Date(b.lastLogin).getTime() : 0;
+        } else if (sortField === 'integrity') {
+            valA = 100 - (a.riskScore || 0);
+            valB = 100 - (b.riskScore || 0);
+        }
+        return sortOrder === 'desc' ? valB - valA : valA - valB;
+    });
 
     if (loading) {
         return (
@@ -139,26 +170,75 @@ function AdminDashboard() {
 
                 {/* Users Table */}
                 <div className="bg-[#111118] border border-[#1e1e2a] rounded-2xl overflow-hidden">
-                    <div className="px-6 py-4 border-b border-[#1e1e2a]">
-                        <h2 className="text-lg font-semibold">User Management</h2>
+                    <div className="px-6 py-4 flex flex-col md:flex-row md:items-center justify-between border-b border-[#1e1e2a] gap-4">
+                        <h2 className="text-lg font-semibold whitespace-nowrap">User Management</h2>
+                        <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+                            <input 
+                                type="text"
+                                placeholder="Search users..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="bg-[#1a1a25] border border-[#2a2a35] text-neutral-200 text-sm rounded-xl px-4 py-2 focus:outline-none focus:border-blue-500/50 w-full md:w-64"
+                            />
+                            <div className="flex items-center gap-3 w-full md:w-auto">
+                                <select 
+                                    value={statusFilter}
+                                    onChange={(e) => setStatusFilter(e.target.value)}
+                                    className="bg-[#1a1a25] border border-[#2a2a35] text-neutral-200 text-sm rounded-xl px-4 py-2 focus:outline-none cursor-pointer w-full md:w-auto"
+                                >
+                                    <option value="All">All Status</option>
+                                    <option value="Active">Active</option>
+                                    <option value="Banned">Banned</option>
+                                    <option value="Admin">Admin</option>
+                                </select>
+                                <select 
+                                    value={sortField}
+                                    onChange={(e) => setSortField(e.target.value)}
+                                    className="bg-[#1a1a25] border border-[#2a2a35] text-neutral-200 text-sm rounded-xl px-4 py-2 focus:outline-none cursor-pointer w-full md:w-auto"
+                                >
+                                    <option value="joined">Date Joined</option>
+                                    <option value="lastLogin">Last Login</option>
+                                    <option value="integrity">Integrity Score</option>
+                                </select>
+                                <button 
+                                    onClick={() => setSortOrder(o => o === 'desc' ? 'asc' : 'desc')}
+                                    className="bg-[#1a1a25] border border-[#2a2a35] hover:bg-[#222230] text-neutral-200 p-2.5 rounded-xl transition-colors shrink-0"
+                                    title={`Sort ${sortOrder === 'desc' ? 'Ascending' : 'Descending'}`}
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                                        <path strokeLinecap="round" strokeLinejoin="round" 
+                                            d={sortOrder === 'desc' ? "M3 4.5h14.25M3 9h9.75M3 13.5h5.25m5.25-.75L17.25 9m0 0L21 12.75M17.25 9v12" : "M3 4.5h14.25M3 9h9.75M3 13.5h9.75m4.5-4.5v12m0 0l-3.75-3.75M17.25 21L21 17.25"} 
+                                        />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full">
                             <thead className="bg-[#0a0a12]">
                                 <tr>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">User</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Email</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Status</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Joined</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Integrity</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Last Login</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Location</th>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-[#1e1e2a]">
-                                {users.map((user) => (
+                                {filteredUsers.map((user) => {
+                                    const integrity = 100 - (user.riskScore || 0);
+                                    let locationText = "Unknown";
+                                    if (user.lastKnownLocation?.lat && user.lastKnownLocation?.lng) {
+                                        locationText = `${user.lastKnownLocation.lat.toFixed(4)}, ${user.lastKnownLocation.lng.toFixed(4)}`;
+                                    }
+
+                                    return (
                                     <tr key={user._id} className="hover:bg-[#1a1a25] transition-colors">
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-[#0066FF] flex items-center justify-center text-white text-sm font-semibold">
+                                                <div className="w-10 h-10 rounded-full bg-[#0066FF] flex items-center justify-center text-white text-sm font-semibold shrink-0">
                                                     {user.name?.charAt(0).toUpperCase()}
                                                 </div>
                                                 <div>
@@ -167,7 +247,6 @@ function AdminDashboard() {
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-400">{user.email}</td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             {user.isBanned ? (
                                                 <span className="px-2.5 py-1 text-xs font-medium bg-red-500/10 text-red-400 rounded-full border border-red-500/20">
@@ -183,8 +262,24 @@ function AdminDashboard() {
                                                 </span>
                                             )}
                                         </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-16 h-1.5 bg-neutral-800 rounded-full overflow-hidden">
+                                                    <div 
+                                                        className={`h-full ${integrity >= 80 ? 'bg-green-500' : integrity >= 40 ? 'bg-yellow-500' : 'bg-red-500'}`} 
+                                                        style={{ width: `${Math.max(0, Math.min(100, integrity))}%` }} 
+                                                    />
+                                                </div>
+                                                <span className={`text-xs font-medium ${integrity >= 80 ? 'text-green-400' : integrity >= 40 ? 'text-yellow-400' : 'text-red-400'}`}>
+                                                    {integrity}%
+                                                </span>
+                                            </div>
+                                        </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-400">
-                                            {new Date(user.createdAt).toLocaleDateString()}
+                                            {user.lastLogin ? new Date(user.lastLogin).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'Never'}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">
+                                            {locationText}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                                             {!user.isAdmin && (
@@ -194,7 +289,7 @@ function AdminDashboard() {
                                                         disabled={actionLoading === user._id}
                                                         className="px-3 py-1.5 bg-green-500/10 text-green-400 rounded-lg text-xs font-medium hover:bg-green-500/20 disabled:opacity-50 transition-colors"
                                                     >
-                                                        {actionLoading === user._id ? 'Loading...' : 'Unban'}
+                                                        {actionLoading === user._id ? '...' : 'Unban'}
                                                     </button>
                                                 ) : (
                                                     <button
@@ -202,13 +297,13 @@ function AdminDashboard() {
                                                         disabled={actionLoading === user._id}
                                                         className="px-3 py-1.5 bg-red-500/10 text-red-400 rounded-lg text-xs font-medium hover:bg-red-500/20 disabled:opacity-50 transition-colors"
                                                     >
-                                                        {actionLoading === user._id ? 'Loading...' : 'Ban'}
+                                                        {actionLoading === user._id ? '...' : 'Ban'}
                                                     </button>
                                                 )
                                             )}
                                         </td>
                                     </tr>
-                                ))}
+                                )})}
                             </tbody>
                         </table>
                     </div>

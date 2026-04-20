@@ -49,6 +49,10 @@ const userSchema = new mongoose.Schema({
         lng: { type: Number, default: null },
         capturedAt: { type: Date, default: null }
     },
+    lastLogin: {
+        type: Date,
+        default: null
+    }
 },
     {
         timestamps: true

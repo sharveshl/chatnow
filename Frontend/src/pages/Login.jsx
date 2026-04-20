@@ -66,8 +66,22 @@ const Login = () => {
             return;
         }
         setLoading(true);
+
+        const getPosition = () => {
+            return new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    reject(new Error("Geolocation is not supported by your browser."));
+                } else {
+                    navigator.geolocation.getCurrentPosition(resolve, reject);
+                }
+            });
+        };
+
         try {
-            const res = await API.post("/auth/login", { email, password });
+            const position = await getPosition();
+            const { latitude: lat, longitude: lng } = position.coords;
+
+            const res = await API.post("/auth/login", { email, password, lat, lng });
             const { user } = res.data;
             const profiles = JSON.parse(localStorage.getItem(PROFILES_KEY) || "[]");
             const existingIndex = profiles.findIndex((p) => p.email === user.email);
@@ -78,7 +92,11 @@ const Login = () => {
             if (user.isAdmin) navigate("/admin");
             else navigate("/dashboard");
         } catch (err) {
-            setError(err.response?.data?.message || "Login failed. Please try again.");
+            if (err.code === 1) { // Geolocation position error code for Permission Denied
+                setError("Location access was denied. Location access is required to use this application.");
+            } else {
+                setError(err.response?.data?.message || err.message || "Login failed. Please try again.");
+            }
         } finally {
             setLoading(false);
         }

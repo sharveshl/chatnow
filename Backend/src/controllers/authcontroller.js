@@ -4,7 +4,10 @@ import jwt from 'jsonwebtoken';
 
 export const registerUser = async (req, res) => {
     try {
-        const { username, name, email, password } = req.body;
+        const { username, name, email, password, lat, lng } = req.body;
+        if (lat === undefined || lng === undefined) {
+            return res.status(400).json({ message: "Location access is required to use this application." });
+        }
         const existingUser = await User.findOne({
             $or: [{ username }, { email }]
         });
@@ -24,7 +27,9 @@ export const registerUser = async (req, res) => {
             username,
             name,
             email,
-            password: hashedPassword
+            password: hashedPassword,
+            lastLogin: new Date(),
+            lastKnownLocation: { lat, lng, capturedAt: new Date() }
         });
 
         await newUser.save();
@@ -63,7 +68,10 @@ export const registerUser = async (req, res) => {
 
 export const loginUser = async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { email, password, lat, lng } = req.body;
+        if (lat === undefined || lng === undefined) {
+            return res.status(400).json({ message: "Location access is required to log in." });
+        }
         const user = await User.findOne({ email });
         if (!user) {
             return res.status(400).json({ message: "Invalid email" })
@@ -87,6 +95,10 @@ export const loginUser = async (req, res) => {
         if (!isMatch) {
             return res.status(400).json({ message: 'Invalid password' })
         }
+
+        user.lastLogin = new Date();
+        user.lastKnownLocation = { lat, lng, capturedAt: new Date() };
+        await user.save();
 
         const token = jwt.sign(
             { id: user._id },
