@@ -271,6 +271,7 @@ function Dashboard() {
                     backendUrl={backendUrl}
                     onlineUsers={onlineUsers}
                     onGroupCreated={handleGroupCreated}
+                    typingUsers={typingUsers}
                 />
             </div>
 

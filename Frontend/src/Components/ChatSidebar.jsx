@@ -1,10 +1,10 @@
-﻿import { useState, useRef } from "react";
+import { useState, useRef } from "react";
 import API from "../service/api";
 import CreateGroupModal from "./CreateGroupModal";
 
 const FILTERS = ["All", "DMs", "Groups", "Unread"];
 
-function ChatSidebar({ conversations, activeChat, onSelectChat, onSelectGroup, currentUser, onNewChat, onOpenOwnProfile, backendUrl, onlineUsers, onGroupCreated }) {
+function ChatSidebar({ conversations, activeChat, onSelectChat, onSelectGroup, currentUser, onNewChat, onOpenOwnProfile, backendUrl, onlineUsers, onGroupCreated, typingUsers }) {
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
@@ -262,6 +262,7 @@ function ChatSidebar({ conversations, activeChat, onSelectChat, onSelectGroup, c
                             const displayName = isDeleted ? "Deleted User" : conv.user?.name;
                             const convPhoto = !isDeleted ? getPhotoUrl(conv.user?.profilePhoto) : null;
                             const isOnline = !isDeleted && onlineUsers?.has(conv.user?._id?.toString?.() || conv.user?._id);
+                            const isTyping = !isDeleted && typingUsers?.has(conv.user?.username);
 
                             return (
                                 <button key={`dm-${conv.user?._id}`} onClick={() => onSelectChat(conv.user)}
@@ -297,9 +298,20 @@ function ChatSidebar({ conversations, activeChat, onSelectChat, onSelectGroup, c
                                             <span className="text-[10px] flex-shrink-0 ml-2" style={{ color: "var(--text-muted)" }}>{formatTime(conv.lastMessageTime)}</span>
                                         </div>
                                         <div className="flex items-center justify-between">
-                                            <p className="text-xs truncate pr-2" style={{ color: conv.unreadCount > 0 ? "var(--text-primary)" : "var(--text-secondary)", fontWeight: conv.unreadCount > 0 ? 500 : 400 }}>
-                                                {conv.lastMessage || (isDeleted ? "Account deleted" : "No messages yet")}
-                                            </p>
+                                            {isTyping ? (
+                                                <p className="text-xs truncate pr-2 flex items-center gap-1" style={{ color: "var(--accent-dark)" }}>
+                                                    <span>typing</span>
+                                                    <span className="flex items-end gap-px h-3">
+                                                        <span className="w-1 h-1 rounded-full animate-bounce" style={{ background: "var(--accent-dark)", animationDelay: "0ms" }} />
+                                                        <span className="w-1 h-1 rounded-full animate-bounce" style={{ background: "var(--accent-dark)", animationDelay: "150ms" }} />
+                                                        <span className="w-1 h-1 rounded-full animate-bounce" style={{ background: "var(--accent-dark)", animationDelay: "300ms" }} />
+                                                    </span>
+                                                </p>
+                                            ) : (
+                                                <p className="text-xs truncate pr-2" style={{ color: conv.unreadCount > 0 ? "var(--text-primary)" : "var(--text-secondary)", fontWeight: conv.unreadCount > 0 ? 500 : 400 }}>
+                                                    {conv.lastMessage || (isDeleted ? "Account deleted" : "No messages yet")}
+                                                </p>
+                                            )}
                                             {conv.unreadCount > 0 && (
                                                 <span className="min-w-[18px] h-[18px] text-white text-[10px] font-bold rounded-full flex items-center justify-center flex-shrink-0 px-1 unread-badge"
                                                     style={{ background: "var(--accent)" }}>

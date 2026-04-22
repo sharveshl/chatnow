@@ -278,8 +278,25 @@ function AdminDashboard() {
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-400">
                                             {user.lastLogin ? new Date(user.lastLogin).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'Never'}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">
-                                            {locationText}
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                            {user.lastKnownLocation?.lat && user.lastKnownLocation?.lng ? (
+                                                <a
+                                                    href={`https://www.google.com/maps?q=${user.lastKnownLocation.lat},${user.lastKnownLocation.lng}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="flex items-center gap-1.5 text-blue-400 hover:text-blue-300 transition-colors group"
+                                                    title="Open in Google Maps"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 shrink-0 group-hover:scale-110 transition-transform">
+                                                        <path fillRule="evenodd" d="m11.54 22.351.07.04.028.016a.76.76 0 0 0 .723 0l.028-.015.071-.041a16.975 16.975 0 0 0 1.144-.742 19.58 19.58 0 0 0 2.683-2.282c1.944-2.013 3.5-4.697 3.5-8.327a8 8 0 1 0-16 0c0 3.63 1.556 6.314 3.5 8.327a19.58 19.58 0 0 0 2.682 2.282 16.975 16.975 0 0 0 1.144.742ZM12 13.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" clipRule="evenodd" />
+                                                    </svg>
+                                                    <span className="underline underline-offset-2 decoration-blue-400/40">
+                                                        {locationText}
+                                                    </span>
+                                                </a>
+                                            ) : (
+                                                <span className="text-neutral-600">{locationText}</span>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                                             {!user.isAdmin && (
