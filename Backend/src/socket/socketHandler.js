@@ -8,7 +8,7 @@ import { encryptMessage, decryptMessage } from '../utils/encryption.js';
 import { analyzeMessage, updateUserRiskScore } from '../utils/securityService.js';
 
 // Map of userId (string) -> socketId
-const onlineUsers = new Map();
+export const onlineUsers = new Map();
 
 // Cache: username -> userId (avoids repeated DB lookups for typing events)
 const usernameToId = new Map();

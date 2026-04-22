@@ -16,6 +16,7 @@ function Dashboard() {
     const [isOwnProfile, setIsOwnProfile] = useState(false);
     const [onlineUsers, setOnlineUsers] = useState(new Set());
     const [typingUsers, setTypingUsers] = useState(new Set());
+    const [bannedReason, setBannedReason] = useState(null);
     const navigate = useNavigate();
     const activeChatRef = useRef(null);
     const typingTimeoutRef = useRef({});
@@ -118,8 +119,13 @@ function Dashboard() {
             if (typingTimeoutRef.current[username]) { clearTimeout(typingTimeoutRef.current[username]); delete typingTimeoutRef.current[username]; }
         });
 
+        // ── Real-time ban enforcement ──────────────────────────────────
+        socket.on('account_banned', ({ message }) => {
+            setBannedReason(message || 'Your account has been banned by the administration.');
+        });
+
         return () => {
-            ['online_users','user_online','user_offline','receive_message','message_delivered','messages_read','group_receive_message','group_updated','group_member_removed','user_typing','user_stopped_typing'].forEach(e => socket.off(e));
+            ['online_users','user_online','user_offline','receive_message','message_delivered','messages_read','group_receive_message','group_updated','group_member_removed','user_typing','user_stopped_typing','account_banned'].forEach(e => socket.off(e));
             disconnectSocket();
             Object.values(typingTimeoutRef.current).forEach(clearTimeout);
             typingTimeoutRef.current = {};
@@ -184,6 +190,13 @@ function Dashboard() {
     const getPhotoUrl = (p) => { if (!p) return null; const base = backendUrl?.replace(/\/api\/?$/, "") || ""; return `${base}${p}`; };
     const currentUserPhoto = getPhotoUrl(currentUser?.profilePhoto);
 
+    // ── Ban modal handler ─────────────────────────────────────────────
+    const handleBanAcknowledge = async () => {
+        try { await API.post('/auth/logout'); } catch { /* proceed */ }
+        disconnectSocket();
+        navigate('/login');
+    };
+
     if (loading && !currentUser) {
         return (
             <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-base)' }}>
@@ -205,6 +218,43 @@ function Dashboard() {
 
     return (
         <div className="h-dvh flex overflow-hidden" style={{ background: 'var(--bg-base)' }}>
+
+            {/* ── Account Banned Modal ──────────────────────────────── */}
+            {bannedReason && (
+                <div
+                    className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+                    style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }}
+                >
+                    <div
+                        className="flex flex-col items-center gap-5 rounded-2xl p-8 max-w-sm w-full animate-fade-in"
+                        style={{ background: '#111118', border: '1px solid rgba(239,68,68,0.3)', boxShadow: '0 0 60px rgba(239,68,68,0.15)' }}
+                    >
+                        {/* Red shield icon */}
+                        <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)' }}>
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="#ef4444" className="w-8 h-8">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.75c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.75h-.152c-3.196 0-6.1-1.248-8.25-3.286Zm0 13.036h.008v.008H12v-.008Z" />
+                            </svg>
+                        </div>
+
+                        <div className="text-center">
+                            <h2 className="text-lg font-bold mb-2" style={{ color: '#ef4444' }}>Account Banned</h2>
+                            <p className="text-sm leading-relaxed" style={{ color: '#a3a3a3' }}>{bannedReason}</p>
+                        </div>
+
+                        <p className="text-xs text-center" style={{ color: '#525252' }}>If you believe this is a mistake, please contact support.</p>
+
+                        <button
+                            onClick={handleBanAcknowledge}
+                            className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all"
+                            style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}
+                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.25)'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'rgba(239,68,68,0.15)'}
+                        >
+                            OK, Log Me Out
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* ── Left nav rail ─────────────────────────────────── */}
             <div className="hidden md:flex flex-col items-center py-4 gap-2 flex-shrink-0 animate-nav-in"
