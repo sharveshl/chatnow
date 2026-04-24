@@ -92,5 +92,42 @@ export default function createAdminRouter(io) {
         }
     });
 
+    // Check microservice health / wake it up
+    const SECURITY_SERVICE_URL = 'https://security-service-zzbx.onrender.com';
+
+    router.get('/services/status', authMiddleware, adminOnly, async (req, res) => {
+        const start = Date.now();
+        try {
+            const response = await fetch(`${SECURITY_SERVICE_URL}/health`, {
+                signal: AbortSignal.timeout(10000)
+            });
+            const latency = Date.now() - start;
+            if (response.ok) {
+                return res.status(200).json({ status: 'online', latency });
+            }
+            return res.status(200).json({ status: 'degraded', latency, httpStatus: response.status });
+        } catch (err) {
+            const latency = Date.now() - start;
+            return res.status(200).json({ status: 'offline', latency, error: err.message });
+        }
+    });
+
+    router.post('/services/wake', authMiddleware, adminOnly, async (req, res) => {
+        const start = Date.now();
+        try {
+            const response = await fetch(`${SECURITY_SERVICE_URL}/health`, {
+                signal: AbortSignal.timeout(30000) // longer timeout for cold start
+            });
+            const latency = Date.now() - start;
+            if (response.ok) {
+                return res.status(200).json({ status: 'online', latency, message: 'Service is awake and responding.' });
+            }
+            return res.status(200).json({ status: 'degraded', latency, httpStatus: response.status });
+        } catch (err) {
+            const latency = Date.now() - start;
+            return res.status(200).json({ status: 'offline', latency, error: err.message });
+        }
+    });
+
     return router;
 }

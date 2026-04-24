@@ -63,6 +63,22 @@ mongoose.connect(process.env.MONGO_URL)
             httpServer.listen(PORT, () => {
                 console.log(`Server is running on port ${PORT}`);
             });
+
+            // ── Keep security microservice alive on Render (ping every 45s) ──
+            const SECURITY_SERVICE_URL = 'https://security-service-zzbx.onrender.com';
+            const pingSecurityService = async () => {
+                try {
+                    const res = await fetch(`${SECURITY_SERVICE_URL}/health`, {
+                        signal: AbortSignal.timeout(10000)
+                    });
+                    console.log(`[keep-alive] Security service: ${res.status} (${res.ok ? 'OK' : 'degraded'})`);
+                } catch (err) {
+                    console.warn(`[keep-alive] Security service unreachable: ${err.message}`);
+                }
+            };
+            // Initial ping on startup, then every 45 seconds
+            pingSecurityService();
+            setInterval(pingSecurityService, 45 * 1000);
         }
     )
     .catch(

@@ -14,6 +14,11 @@ function AdminDashboard() {
     const [sortField, setSortField] = useState('joined');
     const [sortOrder, setSortOrder] = useState('desc');
     const [selectedUser, setSelectedUser] = useState(null);
+    const [serviceStatus, setServiceStatus] = useState(null); // null | 'online' | 'offline' | 'degraded'
+    const [serviceLatency, setServiceLatency] = useState(null);
+    const [serviceChecking, setServiceChecking] = useState(false);
+    const [serviceWaking, setServiceWaking] = useState(false);
+    const [serviceLastChecked, setServiceLastChecked] = useState(null);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -31,6 +36,35 @@ function AdminDashboard() {
         };
         checkAdmin();
     }, [navigate]);
+
+    const checkServiceStatus = async () => {
+        setServiceChecking(true);
+        try {
+            const res = await API.get('/admin/services/status');
+            setServiceStatus(res.data.status);
+            setServiceLatency(res.data.latency);
+            setServiceLastChecked(new Date());
+        } catch {
+            setServiceStatus('offline');
+        } finally {
+            setServiceChecking(false);
+        }
+    };
+
+    const wakeService = async () => {
+        setServiceWaking(true);
+        setServiceStatus(null);
+        try {
+            const res = await API.post('/admin/services/wake');
+            setServiceStatus(res.data.status);
+            setServiceLatency(res.data.latency);
+            setServiceLastChecked(new Date());
+        } catch {
+            setServiceStatus('offline');
+        } finally {
+            setServiceWaking(false);
+        }
+    };
 
     const fetchData = async () => {
         try {
@@ -169,6 +203,115 @@ function AdminDashboard() {
                         }
                         color="purple"
                     />
+                </div>
+
+                {/* Microservices Panel */}
+                <div className="mb-8 bg-[#111118] border border-[#1e1e2a] rounded-2xl overflow-hidden">
+                    <div className="px-6 py-4 flex items-center justify-between border-b border-[#1e1e2a]">
+                        <div className="flex items-center gap-2.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-blue-400">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 14.25h13.5m-13.5 0a3 3 0 0 1-3-3m3 3a3 3 0 1 0 6 0m-3-3V4.5m0 9.75V14.25m7.5 0a3 3 0 0 0 3-3m-3 3a3 3 0 1 1-6 0m3-3V4.5m0 9.75V14.25" />
+                            </svg>
+                            <h2 className="text-base font-semibold text-neutral-100">Microservices</h2>
+                        </div>
+                        <button onClick={checkServiceStatus} disabled={serviceChecking}
+                            className="text-xs text-neutral-500 hover:text-neutral-300 flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={`w-3.5 h-3.5 ${serviceChecking ? 'animate-spin' : ''}`}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                            </svg>
+                            {serviceChecking ? 'Checking…' : 'Refresh status'}
+                        </button>
+                    </div>
+
+                    {/* Security Service Row */}
+                    <div className="px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                            {/* Status dot */}
+                            <div className="relative flex-shrink-0">
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${
+                                    serviceStatus === 'online'   ? 'bg-green-500/10 border-green-500/20' :
+                                    serviceStatus === 'degraded' ? 'bg-yellow-500/10 border-yellow-500/20' :
+                                    serviceStatus === 'offline'  ? 'bg-red-500/10 border-red-500/20' :
+                                    'bg-neutral-800 border-neutral-700'
+                                }`}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`w-5 h-5 ${
+                                        serviceStatus === 'online'   ? 'text-green-400' :
+                                        serviceStatus === 'degraded' ? 'text-yellow-400' :
+                                        serviceStatus === 'offline'  ? 'text-red-400' :
+                                        'text-neutral-500'
+                                    }`}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
+                                    </svg>
+                                </div>
+                                {serviceStatus === 'online' && (
+                                    <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 border-2 border-[#111118] online-dot" />
+                                )}
+                            </div>
+                            <div>
+                                <p className="text-sm font-semibold text-neutral-100">Security Service</p>
+                                <p className="text-xs text-neutral-500 mt-0.5">security-service-zzbx.onrender.com</p>
+                                <div className="flex items-center gap-3 mt-1.5">
+                                    <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                                        serviceStatus === 'online'   ? 'bg-green-500/15 text-green-400' :
+                                        serviceStatus === 'degraded' ? 'bg-yellow-500/15 text-yellow-400' :
+                                        serviceStatus === 'offline'  ? 'bg-red-500/15 text-red-400' :
+                                        'bg-neutral-800 text-neutral-500'
+                                    }`}>
+                                        <span className={`w-1.5 h-1.5 rounded-full ${
+                                            serviceStatus === 'online'   ? 'bg-green-400' :
+                                            serviceStatus === 'degraded' ? 'bg-yellow-400' :
+                                            serviceStatus === 'offline'  ? 'bg-red-400' :
+                                            'bg-neutral-500'
+                                        }`} />
+                                        {serviceChecking || serviceWaking ? 'Checking…' :
+                                            serviceStatus === 'online'   ? 'Online' :
+                                            serviceStatus === 'degraded' ? 'Degraded' :
+                                            serviceStatus === 'offline'  ? 'Offline / Sleeping' :
+                                            'Unknown'}
+                                    </span>
+                                    {serviceLatency != null && !serviceChecking && !serviceWaking && (
+                                        <span className="text-[11px] text-neutral-600">{serviceLatency}ms</span>
+                                    )}
+                                    {serviceLastChecked && (
+                                        <span className="text-[11px] text-neutral-600">
+                                            Last checked {serviceLastChecked.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 sm:flex-shrink-0">
+                            {serviceStatus !== 'online' && (
+                                <button onClick={wakeService} disabled={serviceWaking || serviceChecking}
+                                    className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 cursor-pointer">
+                                    {serviceWaking ? (
+                                        <>
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 animate-spin">
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                                            </svg>
+                                            Waking up… (up to 30s)
+                                        </>
+                                    ) : (
+                                        <>
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-4 h-4">
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M5.636 5.636a9 9 0 1 0 12.728 0M12 3v9" />
+                                            </svg>
+                                            Wake Up Service
+                                        </>
+                                    )}
+                                </button>
+                            )}
+                            {serviceStatus === 'online' && (
+                                <span className="flex items-center gap-1.5 text-sm text-green-400 font-medium">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z" clipRule="evenodd" />
+                                    </svg>
+                                    Running
+                                </span>
+                            )}
+                        </div>
+                    </div>
                 </div>
 
                 {/* Users Table */}
