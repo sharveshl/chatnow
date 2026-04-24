@@ -249,9 +249,10 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
     }
 
     const isDeleted = activeChat.isDeleted;
+    const isBanned = activeChat.isBanned;
     const displayName = isDeleted ? "Deleted User" : activeChat.name;
     const chatPhoto = !isDeleted ? getPhotoUrl(activeChat.profilePhoto) : null;
-    const isOnline = !isDeleted && onlineUsers?.has(activeChat._id?.toString?.() || activeChat._id);
+    const isOnline = !isDeleted && !isBanned && onlineUsers?.has(activeChat._id?.toString?.() || activeChat._id);
     const isUserTyping = typingUsers?.has(activeChat.username);
 
     return (
@@ -265,15 +266,19 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
                     </svg>
                 </button>
 
-                <button onClick={() => !isDeleted && onOpenUserProfile(activeChat)}
-                    disabled={isDeleted}
+                <button onClick={() => !isDeleted && !isBanned && onOpenUserProfile(activeChat)}
+                    disabled={isDeleted || isBanned}
                     className="flex items-center gap-3 flex-1 min-w-0 hover:bg-[#f7f8fa] rounded-xl px-2 py-1.5 -mx-2 transition-colors cursor-pointer text-left disabled:cursor-default disabled:hover:bg-transparent">
                     <div className="relative flex-shrink-0">
                         <div className="w-10 h-10 md:w-11 md:h-11 rounded-full flex items-center justify-center text-white text-sm font-semibold overflow-hidden shadow-sm"
-                            style={{ background: isDeleted ? '#a0a5ab' : 'linear-gradient(135deg, #5288c1 0%, #3d6fa3 100%)' }}>
+                            style={{ background: isDeleted ? '#a0a5ab' : isBanned ? '#7f1d1d' : 'linear-gradient(135deg, #5288c1 0%, #3d6fa3 100%)' }}>
                             {isDeleted ? (
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="white" className="w-5 h-5">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M22 10.5h-6m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM4 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 10.374 21c-2.331 0-4.512-.645-6.374-1.766Z" />
+                                </svg>
+                            ) : isBanned ? (
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" style={{ color: '#fca5a5' }}>
+                                    <path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25Zm-1.72 6.97a.75.75 0 1 0-1.06 1.06L10.94 12l-1.72 1.72a.75.75 0 1 0 1.06 1.06L12 13.06l1.72 1.72a.75.75 0 1 0 1.06-1.06L13.06 12l1.72-1.72a.75.75 0 1 0-1.06-1.06L12 10.94l-1.72-1.72Z" clipRule="evenodd" />
                                 </svg>
                             ) : chatPhoto ? (
                                 <img src={chatPhoto} alt={displayName} className="w-full h-full object-cover" />
@@ -286,13 +291,19 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
                     </div>
                     <div className="min-w-0 flex-1">
                         <h3 className="text-sm font-semibold truncate"
-                            style={{ color: isDeleted ? '#a0a5ab' : '#2c3e50' }}>
+                            style={{ color: isDeleted ? '#a0a5ab' : isBanned ? '#e97c7c' : '#2c3e50' }}>
                             {displayName}
+                            {isBanned && (
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="inline w-3.5 h-3.5 ml-1.5 mb-0.5" style={{ color: '#ef4444' }}>
+                                    <path fillRule="evenodd" d="M8 15A7 7 0 1 0 8 1a7 7 0 0 0 0 14ZM3.47 3.47a.75.75 0 0 1 1.06 0l8 8a.75.75 0 1 1-1.06 1.06l-8-8a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+                                </svg>
+                            )}
                         </h3>
-                        <p className="text-xs" style={{ color: '#707579' }}>
+                        <p className="text-xs" style={{ color: isBanned ? '#e97c7c' : '#707579' }}>
                             {isDeleted ? 'Account deleted' :
-                                isUserTyping ? <span className="text-[#5288c1]">typing…</span> :
-                                    isOnline ? 'Online' : 'Offline'}
+                                isBanned ? 'Account suspended' :
+                                    isUserTyping ? <span className="text-[#5288c1]">typing…</span> :
+                                        isOnline ? 'Online' : 'Offline'}
                         </p>
                     </div>
                 </button>
@@ -418,8 +429,8 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
                         value={newMessage}
                         onChange={handleInputChange}
                         onFocus={() => setShowEmojiPicker(false)}
-                        placeholder={isDeleted ? "Cannot message deleted user" : "Your message"}
-                        disabled={isDeleted}
+                        placeholder={isDeleted ? "Cannot message deleted user" : isBanned ? "Cannot message banned account" : "Your message"}
+                        disabled={isDeleted || isBanned}
                         className={`flex-1 px-4 py-2.5 bg-[#f7f8fa] border rounded-full text-sm placeholder-[#a0a5ab] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-all
                             ${securityAlert
                                 ? 'border-red-300 focus:border-red-400 focus:bg-white'
@@ -427,7 +438,7 @@ function ChatWindow({ activeChat, currentUser, onMessageSent, onOpenUserProfile,
                             }`}
                         style={{ color: '#2c3e50' }}
                     />
-                    <button type="submit" disabled={!newMessage.trim() || sending || isDeleted}
+                    <button type="submit" disabled={!newMessage.trim() || sending || isDeleted || isBanned}
                         className="w-10 h-10 bg-[#5288c1] text-white rounded-full flex items-center justify-center hover:bg-[#3d6fa3] active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer flex-shrink-0 shadow-md">
                         {sending
                             ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />

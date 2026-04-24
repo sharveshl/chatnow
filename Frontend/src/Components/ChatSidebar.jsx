@@ -11,6 +11,7 @@ function ChatSidebar({ conversations, activeChat, onSelectChat, onSelectGroup, c
     const [showCreateGroup, setShowCreateGroup] = useState(false);
     const [filter, setFilter] = useState("All");
     const [searchFocused, setSearchFocused] = useState(false);
+    const [bannedToast, setBannedToast] = useState(false);
     const searchTimerRef = useRef(null);
 
     const getInitial = (name) => name ? name.charAt(0).toUpperCase() : "?";
@@ -31,6 +32,11 @@ function ChatSidebar({ conversations, activeChat, onSelectChat, onSelectGroup, c
     };
 
     const handleSelectSearchResult = (user) => {
+        if (user.isBanned) {
+            setBannedToast(true);
+            setTimeout(() => setBannedToast(false), 3500);
+            return;
+        }
         onNewChat(user);
         setSearchQuery("");
         setSearchResults([]);
@@ -61,7 +67,20 @@ function ChatSidebar({ conversations, activeChat, onSelectChat, onSelectGroup, c
     const getAvatarColor = (name) => avatarColors[(name?.charCodeAt(0) || 0) % avatarColors.length];
 
     return (
-        <div className="w-full h-full flex flex-col min-h-0" style={{ background: "var(--bg-surface)", borderRight: "1px solid var(--border)" }}>
+        <div className="w-full h-full flex flex-col min-h-0 relative" style={{ background: "var(--bg-surface)", borderRight: "1px solid var(--border)" }}>
+            {/* Banned account toast */}
+            {bannedToast && (
+                <div className="absolute top-3 left-3 right-3 z-50 animate-pop-in"
+                    style={{ pointerEvents: "none" }}>
+                    <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg"
+                        style={{ background: "#3b0d0d", border: "1px solid rgba(239,68,68,0.4)", color: "#fca5a5" }}>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 flex-shrink-0" style={{ color: "#f87171" }}>
+                            <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM8.28 7.22a.75.75 0 0 0-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 1 0 1.06 1.06L10 11.06l1.72 1.72a.75.75 0 1 0 1.06-1.06L11.06 10l1.72-1.72a.75.75 0 0 0-1.06-1.06L10 8.94 8.28 7.22Z" clipRule="evenodd" />
+                        </svg>
+                        <span className="text-xs font-medium">This account is banned. You cannot send messages to this user.</span>
+                    </div>
+                </div>
+            )}
 
             {/* Header */}
             <div className="px-4 pt-4 pb-3 flex-shrink-0 animate-header-in" style={{ borderBottom: "1px solid var(--border)" }}>
@@ -134,18 +153,37 @@ function ChatSidebar({ conversations, activeChat, onSelectChat, onSelectGroup, c
                             <div className="max-h-52 overflow-y-auto scrollbar-thin">
                                 {searchResults.map((user) => (
                                     <button key={user._id} onMouseDown={() => handleSelectSearchResult(user)}
-                                        className="w-full flex items-center gap-3 px-4 py-2.5 transition-colors cursor-pointer"
-                                        style={{ color: "var(--text-primary)" }}
-                                        onMouseEnter={e => e.currentTarget.style.background = "var(--bg-hover)"}
+                                        className="w-full flex items-center gap-3 px-4 py-2.5 transition-colors"
+                                        style={{
+                                            color: "var(--text-primary)",
+                                            cursor: user.isBanned ? "not-allowed" : "pointer",
+                                            opacity: user.isBanned ? 0.75 : 1
+                                        }}
+                                        onMouseEnter={e => { if (!user.isBanned) e.currentTarget.style.background = "var(--bg-hover)"; }}
                                         onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                                        <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0 overflow-hidden"
-                                            style={{ background: getAvatarColor(user.name) }}>
-                                            {getPhotoUrl(user.profilePhoto)
+                                        <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0 overflow-hidden relative"
+                                            style={{ background: user.isBanned ? "#6b2222" : getAvatarColor(user.name) }}>
+                                            {user.isBanned ? (
+                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-red-300">
+                                                    <path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25Zm-1.72 6.97a.75.75 0 1 0-1.06 1.06L10.94 12l-1.72 1.72a.75.75 0 1 0 1.06 1.06L12 13.06l1.72 1.72a.75.75 0 1 0 1.06-1.06L13.06 12l1.72-1.72a.75.75 0 1 0-1.06-1.06L12 10.94l-1.72-1.72Z" clipRule="evenodd" />
+                                                </svg>
+                                            ) : getPhotoUrl(user.profilePhoto)
                                                 ? <img src={getPhotoUrl(user.profilePhoto)} alt={user.name} className="w-full h-full object-cover" />
                                                 : getInitial(user.name)}
                                         </div>
                                         <div className="text-left min-w-0 flex-1">
-                                            <p className="text-sm font-semibold truncate">{user.name}</p>
+                                            <div className="flex items-center gap-1.5">
+                                                <p className="text-sm font-semibold truncate">{user.name}</p>
+                                                {user.isBanned && (
+                                                    <span className="flex-shrink-0 flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                                                        style={{ background: "rgba(239,68,68,0.15)", color: "#f87171" }}>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-2.5 h-2.5">
+                                                            <path fillRule="evenodd" d="M8 15A7 7 0 1 0 8 1a7 7 0 0 0 0 14ZM3.47 3.47a.75.75 0 0 1 1.06 0l8 8a.75.75 0 1 1-1.06 1.06l-8-8a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+                                                        </svg>
+                                                        Banned
+                                                    </span>
+                                                )}
+                                            </div>
                                             <p className="text-xs truncate" style={{ color: "var(--text-muted)" }}>@{user.username}</p>
                                         </div>
                                     </button>

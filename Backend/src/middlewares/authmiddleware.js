@@ -23,6 +23,13 @@ const authMiddleware = async (req, res, next) => {
             });
         }
 
+        if (user.isBanned) {
+            return res.status(403).json({
+                message: "Your account has been suspended due to repeated security violations. You cannot access this application.",
+                banned: true
+            });
+        }
+
         req.user = user;
         next();
     }

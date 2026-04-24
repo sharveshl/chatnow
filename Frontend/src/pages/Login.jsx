@@ -10,6 +10,7 @@ const Login = () => {
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState("");
+    const [isBanned, setIsBanned] = useState(false);
     const [loading, setLoading] = useState(false);
     const [savedProfiles, setSavedProfiles] = useState([]);
     const [selectedProfile, setSelectedProfile] = useState(null);
@@ -94,6 +95,9 @@ const Login = () => {
         } catch (err) {
             if (err.code === 1) { // Geolocation position error code for Permission Denied
                 setError("Location access was denied. Location access is required to use this application.");
+            } else if (err.response?.status === 403 && (err.response?.data?.banned || err.response?.data?.message?.toLowerCase().includes('suspend') || err.response?.data?.message?.toLowerCase().includes('banned'))) {
+                setIsBanned(true);
+                setError("");
             } else {
                 setError(err.response?.data?.message || err.message || "Login failed. Please try again.");
             }
@@ -146,7 +150,20 @@ const Login = () => {
                 {/* Form card */}
                 <div className="bg-[#111118] rounded-2xl border border-[#1e1e2a] p-7 shadow-2xl">
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        {error && (
+                        {isBanned && (
+                            <div className="flex flex-col gap-2 bg-red-950/60 border border-red-500/40 text-red-300 text-sm px-4 py-4 rounded-xl animate-fade-in">
+                                <div className="flex items-center gap-2.5">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 flex-shrink-0 text-red-400">
+                                        <path fillRule="evenodd" d="M12 1.5a5.25 5.25 0 1 0 0 10.5A5.25 5.25 0 0 0 12 1.5ZM3 20.25a9 9 0 1 1 18 0 .75.75 0 0 1-.75.75H3.75a.75.75 0 0 1-.75-.75ZM6.27 14.48A6.738 6.738 0 0 0 12 17.25c2.087 0 3.96-.95 5.23-2.448L6.27 14.48Z" clipRule="evenodd" />
+                                    </svg>
+                                    <span className="font-semibold text-red-300">Account Suspended</span>
+                                </div>
+                                <p className="text-xs text-red-400 leading-relaxed ml-7">
+                                    Your account has been suspended due to repeated security violations. You cannot log in to this account. Please contact support if you believe this is an error.
+                                </p>
+                            </div>
+                        )}
+                        {error && !isBanned && (
                             <div className="flex items-center gap-2.5 bg-red-500/10 border border-red-500/20 text-red-400 text-sm px-4 py-3 rounded-xl animate-fade-in">
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 flex-shrink-0">
                                     <path fillRule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-8-5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0v-4.5A.75.75 0 0 1 10 5Zm0 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clipRule="evenodd" />
