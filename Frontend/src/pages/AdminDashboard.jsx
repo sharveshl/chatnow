@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import API from '../service/api';
 
+const BACKEND_URL = import.meta.env.VITE_API_URL?.replace(/\/api\/?$/, '') || '';
+
 function AdminDashboard() {
     const [stats, setStats] = useState(null);
     const [users, setUsers] = useState([]);
@@ -11,6 +13,7 @@ function AdminDashboard() {
     const [statusFilter, setStatusFilter] = useState('All');
     const [sortField, setSortField] = useState('joined');
     const [sortOrder, setSortOrder] = useState('desc');
+    const [selectedUser, setSelectedUser] = useState(null);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -235,7 +238,7 @@ function AdminDashboard() {
                                     }
 
                                     return (
-                                    <tr key={user._id} className="hover:bg-[#1a1a25] transition-colors">
+                                    <tr key={user._id} onClick={() => setSelectedUser(user)} className="hover:bg-[#1a1a25] transition-colors cursor-pointer">
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-10 h-10 rounded-full bg-[#0066FF] flex items-center justify-center text-white text-sm font-semibold shrink-0">
@@ -302,7 +305,7 @@ function AdminDashboard() {
                                             {!user.isAdmin && (
                                                 user.isBanned ? (
                                                     <button
-                                                        onClick={() => handleUnbanUser(user._id)}
+                                                        onClick={(e) => { e.stopPropagation(); handleUnbanUser(user._id); }}
                                                         disabled={actionLoading === user._id}
                                                         className="px-3 py-1.5 bg-green-500/10 text-green-400 rounded-lg text-xs font-medium hover:bg-green-500/20 disabled:opacity-50 transition-colors"
                                                     >
@@ -310,7 +313,7 @@ function AdminDashboard() {
                                                     </button>
                                                 ) : (
                                                     <button
-                                                        onClick={() => handleBanUser(user._id)}
+                                                        onClick={(e) => { e.stopPropagation(); handleBanUser(user._id); }}
                                                         disabled={actionLoading === user._id}
                                                         className="px-3 py-1.5 bg-red-500/10 text-red-400 rounded-lg text-xs font-medium hover:bg-red-500/20 disabled:opacity-50 transition-colors"
                                                     >
@@ -325,6 +328,124 @@ function AdminDashboard() {
                         </table>
                     </div>
                 </div>
+            </div>
+
+            {/* User Detail Modal */}
+            {selectedUser && (
+                <UserDetailModal
+                    user={selectedUser}
+                    backendUrl={BACKEND_URL}
+                    actionLoading={actionLoading}
+                    onClose={() => setSelectedUser(null)}
+                    onBan={async (id) => { await handleBanUser(id); setSelectedUser(u => ({ ...u, isBanned: true })); }}
+                    onUnban={async (id) => { await handleUnbanUser(id); setSelectedUser(u => ({ ...u, isBanned: false, riskScore: 0 })); }}
+                />
+            )}
+        </div>
+    );
+}
+
+function UserDetailModal({ user, backendUrl, actionLoading, onClose, onBan, onUnban }) {
+    const integrity = 100 - (user.riskScore || 0);
+    const photoUrl = user.profilePhoto ? `${backendUrl}${user.profilePhoto}` : null;
+    const hasLocation = user.lastKnownLocation?.lat && user.lastKnownLocation?.lng;
+    const mapsUrl = hasLocation
+        ? `https://www.google.com/maps?q=${user.lastKnownLocation.lat},${user.lastKnownLocation.lng}`
+        : null;
+
+    const fmt = (d) => d ? new Date(d).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Never';
+
+    const Row = ({ label, children }) => (
+        <div className="flex items-start gap-3 py-2.5 border-b border-[#1e1e2a] last:border-0">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500 w-28 shrink-0 pt-0.5">{label}</span>
+            <span className="text-sm text-neutral-200 flex-1 break-all">{children}</span>
+        </div>
+    );
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
+            onClick={onClose}>
+            <div className="w-full max-w-md bg-[#111118] border border-[#2a2a38] rounded-2xl shadow-2xl overflow-hidden"
+                style={{ animation: 'popIn .2s ease' }}
+                onClick={e => e.stopPropagation()}>
+
+                {/* Modal Header */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-[#1e1e2a]">
+                    <h2 className="text-base font-semibold text-neutral-100">User Details</h2>
+                    <button onClick={onClose} className="w-7 h-7 rounded-full bg-[#1e1e2a] hover:bg-[#2a2a38] flex items-center justify-center text-neutral-400 hover:text-white transition-colors cursor-pointer">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                            <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+                        </svg>
+                    </button>
+                </div>
+
+                {/* Avatar + Name */}
+                <div className="flex items-center gap-4 px-6 py-5 border-b border-[#1e1e2a]" style={{ background: '#0d0d14' }}>
+                    <div className="w-16 h-16 rounded-full overflow-hidden shrink-0 flex items-center justify-center text-white text-2xl font-bold"
+                        style={{ background: user.isBanned ? '#7f1d1d' : user.isAdmin ? '#3b1d8a' : '#0066FF' }}>
+                        {photoUrl
+                            ? <img src={photoUrl} alt={user.name} className="w-full h-full object-cover" />
+                            : user.name?.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                        <p className="text-lg font-bold text-neutral-100 truncate">{user.name}</p>
+                        <p className="text-sm text-neutral-500">@{user.username}</p>
+                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                            {user.isAdmin && <span className="px-2 py-0.5 text-[10px] font-semibold bg-purple-500/15 text-purple-400 rounded-full border border-purple-500/20">Admin</span>}
+                            {user.isBanned && <span className="px-2 py-0.5 text-[10px] font-semibold bg-red-500/15 text-red-400 rounded-full border border-red-500/20">Banned</span>}
+                            {user.isDeleted && <span className="px-2 py-0.5 text-[10px] font-semibold bg-neutral-500/15 text-neutral-400 rounded-full border border-neutral-500/20">Deleted</span>}
+                            {!user.isBanned && !user.isAdmin && !user.isDeleted && <span className="px-2 py-0.5 text-[10px] font-semibold bg-green-500/15 text-green-400 rounded-full border border-green-500/20">Active</span>}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Fields */}
+                <div className="px-6 py-3 max-h-72 overflow-y-auto scrollbar-thin">
+                    <Row label="Email">{user.email}</Row>
+                    <Row label="About">{user.about || <span className="text-neutral-600 italic">No bio set</span>}</Row>
+                    <Row label="Risk Score">
+                        <span className={`font-semibold ${user.riskScore >= 80 ? 'text-red-400' : user.riskScore >= 40 ? 'text-yellow-400' : 'text-green-400'}`}>
+                            {user.riskScore || 0}
+                        </span>
+                        <span className="text-neutral-500 ml-1">/ 100 &nbsp;·&nbsp; Integrity: </span>
+                        <span className={`font-semibold ${integrity >= 80 ? 'text-green-400' : integrity >= 40 ? 'text-yellow-400' : 'text-red-400'}`}>{integrity}%</span>
+                    </Row>
+                    <Row label="Last Login">{fmt(user.lastLogin)}</Row>
+                    <Row label="Joined">{fmt(user.createdAt)}</Row>
+                    <Row label="Location">
+                        {hasLocation ? (
+                            <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
+                                className="text-blue-400 hover:text-blue-300 underline underline-offset-2 transition-colors">
+                                {user.lastKnownLocation.lat.toFixed(4)}, {user.lastKnownLocation.lng.toFixed(4)}
+                            </a>
+                        ) : <span className="text-neutral-600 italic">Unknown</span>}
+                    </Row>
+                    <Row label="Account">
+                        <span className={user.isDeleted ? 'text-neutral-400' : 'text-green-400'}>{user.isDeleted ? 'Deleted' : 'Exists'}</span>
+                        <span className="text-neutral-600 mx-2">·</span>
+                        <span className={user.isBanned ? 'text-red-400' : 'text-green-400'}>{user.isBanned ? 'Banned' : 'Not Banned'}</span>
+                    </Row>
+                </div>
+
+                {/* Actions */}
+                {!user.isAdmin && (
+                    <div className="px-6 py-4 border-t border-[#1e1e2a] flex justify-end gap-3">
+                        {user.isBanned ? (
+                            <button onClick={() => onUnban(user._id)}
+                                disabled={actionLoading === user._id}
+                                className="px-4 py-2 bg-green-500/10 text-green-400 hover:bg-green-500/20 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 cursor-pointer">
+                                {actionLoading === user._id ? 'Processing…' : '✓ Unban User'}
+                            </button>
+                        ) : (
+                            <button onClick={() => onBan(user._id)}
+                                disabled={actionLoading === user._id}
+                                className="px-4 py-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 cursor-pointer">
+                                {actionLoading === user._id ? 'Processing…' : '⊘ Ban User'}
+                            </button>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );

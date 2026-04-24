@@ -40,7 +40,7 @@ export default function createAdminRouter(io) {
     router.get('/users', authMiddleware, adminOnly, async (req, res) => {
         try {
             const users = await User.find({})
-                .select('username name email riskScore isBanned lastKnownLocation lastLogin createdAt updatedAt isAdmin')
+                .select('username name email about profilePhoto riskScore isBanned isDeleted lastKnownLocation lastLogin createdAt updatedAt isAdmin')
                 .sort({ riskScore: -1 })
                 .lean();
 
